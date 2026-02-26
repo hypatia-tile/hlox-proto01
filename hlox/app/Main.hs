@@ -3,26 +3,32 @@ module Main (main) where
 import System.Directory (getCurrentDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitFailure), exitWith)
-import System.IO (hFlush, stdout)
 
 main :: IO ()
-main = greet'
+main = do
+  info
+  lox
 
-greet' :: IO ()
-greet' = do
+lox :: IO ()
+lox = do
   args <- getArgs
   case args of
-    [] -> putStrLn "No input file provided."
-    [input] -> putStrLn $ "Input file: " <> input
+    [] -> runPrompt
+    [input] -> runFile input
     _ -> do
       putStrLn "Usage: hlox [input_file]"
       exitWith (ExitFailure 64)
 
-greet :: IO ()
-greet = do
+runPrompt :: IO ()
+runPrompt = do
+  putStrLn "Welcome to hlox REPL. Type 'exit' to quit."
+  putStrLn "TODO: Implement REPL functionality."
+
+runFile :: String -> IO ()
+runFile path = do
+  putStrLn $ "Running file: " <> path
+
+info :: IO ()
+info = do
   cwd <- getCurrentDirectory
   putStrLn $ "Current directory: " <> cwd
-  putStr "Input file: "
-  hFlush stdout
-  input <- getLine
-  putStrLn input
