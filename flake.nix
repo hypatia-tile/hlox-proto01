@@ -26,6 +26,7 @@
           hp.ghcid
           hp.ormolu
           hp.hlint
+          pkgs.haskellPackages.cabal-gild
         ];
       in {
         devShells.default = pkgs.mkShell {
