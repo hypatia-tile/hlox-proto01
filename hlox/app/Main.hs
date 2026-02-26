@@ -3,6 +3,7 @@ module Main (main) where
 import System.Directory (getCurrentDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitFailure), exitWith)
+import System.IO (readFile)
 
 main :: IO ()
 main = do
@@ -27,6 +28,10 @@ runPrompt = do
 runFile :: String -> IO ()
 runFile path = do
   putStrLn $ "Running file: " <> path
+  content <- readFile path
+  putStrLn "File content:"
+  putStrLn content
+  putStrLn "TODO: Implement file execution functionality."
 
 info :: IO ()
 info = do
