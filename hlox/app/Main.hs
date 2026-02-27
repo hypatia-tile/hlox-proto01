@@ -1,9 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main (main) where
 
 import System.Directory (getCurrentDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitFailure), exitWith)
-import System.IO (readFile)
+import System.IO (IOMode (ReadMode), hGetContents, withFile)
 
 main :: IO ()
 main = do
@@ -28,9 +30,9 @@ runPrompt = do
 runFile :: String -> IO ()
 runFile path = do
   putStrLn $ "Running file: " <> path
-  content <- readFile path
-  putStrLn "File content:"
-  putStrLn content
+  withFile path ReadMode $ \handle -> do
+    content <- hGetContents handle
+    putStrLn content
   putStrLn "TODO: Implement file execution functionality."
 
 info :: IO ()
