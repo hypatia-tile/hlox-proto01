@@ -3,11 +3,14 @@
 module Main (main) where
 
 import Control.Exception (IOException, catch)
+import InterpError (InterpError)
 import System.Directory (getCurrentDirectory)
 import System.Environment (getArgs)
 import System.Exit (ExitCode (ExitFailure), exitWith)
 import System.IO (IOMode (ReadMode), hFlush, hGetContents, stdout, withFile)
 import System.IO.Error (isEOFError)
+
+type Result a = Either InterpError a
 
 main :: IO ()
 main = do
