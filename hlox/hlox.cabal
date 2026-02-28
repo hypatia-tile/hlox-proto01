@@ -26,6 +26,8 @@ common warnings
 library
   exposed-modules:
     InterpError,
+    Interp.ReadFile,
+    Interp.Repl,
 
   build-depends: base ^>=4.20.2.0
   hs-source-dirs: src
