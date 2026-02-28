@@ -14,6 +14,10 @@ main = do
   info
   lox
 
+-- | Entry point for the hlox application.
+--   If no arguments are passed, it starts the REPL.
+--   If a single argument is passed, it treats it as a file path and runs the file.
+--   Otherwise, it prints usage information and exits with an error code.
 lox :: IO ()
 lox = do
   args <- getArgs
