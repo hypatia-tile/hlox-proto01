@@ -1,4 +1,4 @@
-module InterpError where
+module Interp.ErrorHandler where
 
 data InterpError
   = ParseError String
