@@ -43,10 +43,9 @@ repl = do
     Just line -> do
       putStrLn $ line
       repl
-
-getLineSafe :: IO (Maybe String)
-getLineSafe = catch (Just <$> getLine) handler
   where
+    getLineSafe :: IO (Maybe String)
+    getLineSafe = catch (Just <$> getLine) handler
     handler :: IOException -> IO (Maybe String)
     handler e
       | isEOFError e = return Nothing -- EOF -> Nothing
