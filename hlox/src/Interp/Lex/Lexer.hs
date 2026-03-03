@@ -4,6 +4,11 @@ import Control.Monad
 import Control.Monad.State.Lazy
 import Interp.Data.Token
 
+infixl 9 ?:
+(?:) :: Maybe a -> Maybe a -> Maybe a
+Nothing ?: fallback = fallback
+(Just x) ?: _ = Just x
+
 class HasPosition a where
   posLine :: a -> Int
   posCol :: a -> Int
@@ -80,18 +85,18 @@ skipWhiteSpace lexerState = case getC lexerState of
   Nothing -> Nothing
   Just (firstChar, rest) -> undefined
 
-
 singleOrDoubleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
-singleOrDoubleCharToken lexerState = do
-  (x, y) <- getC lexerState
-  matchTok x y
+singleOrDoubleCharToken lexerState = 
+  singleCharToken lexerState ?: do
+      (x, y) <- getC lexerState
+      matchTok x y
   where
     matchTok :: Char -> LexerState -> Maybe (LexerVal, LexerState)
     matchTok '!' = Just . weighTok TokBang TokBangEqual ('=' ==)
     matchTok '=' = Just . weighTok TokEqual TokEqualEqual ('=' ==)
     matchTok '>' = Just . weighTok TokGreater TokGreaterEqual ('=' ==)
     matchTok '<' = Just . weighTok TokLess TokLessEqual ('=' ==)
-    matchTok _ = \_ -> singleCharToken lexerState
+    matchTok _  = \_ -> Nothing
     weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> (LexerVal, LexerState)
     weighTok tok1 tok2 pred st = case getC st of
       Nothing -> (makeVal tok1 (currentPos lexerState) 1, posAddCol 1 st)
