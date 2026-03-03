@@ -4,13 +4,26 @@ import Control.Monad
 import Control.Monad.State.Lazy
 import Interp.Data.Token
 
-type LexerVal = Token
+type LexerVal = TokenWithPosition
+
+makeVal :: Token -> Position -> Int -> LexerVal
+makeVal tok pos c =
+  TokenWithPosition
+    { token = tok,
+      tokenStart = pos,
+      tokenEnd =
+        pos
+          { line = (line pos),
+            column = (column pos) + c - 1
+          }
+    }
 
 data TokenWithPosition = TokenWithPosition
   { token :: Token,
     tokenStart :: Position,
     tokenEnd :: Position
   }
+  deriving (Show)
 
 data Position = Position
   { line :: Int,
@@ -67,17 +80,17 @@ singleOrDoubleCharToken lexerState = do
     matchTok _ = \_ -> singleCharToken lexerState
     weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> (LexerVal, LexerState)
     weighTok tok1 tok2 pred st = case getC st of
-      Nothing -> (tok1, st { pos = addCol 1 (pos st) })
+      Nothing -> (makeVal tok1 (pos lexerState) 1, st { pos = addCol 1 (pos lexerState) })
       Just (c, r) -> 
         if pred c
-        then (tok2, r { pos = addCol 2 (pos r) })
-        else (tok1, st { pos = addCol 1 (pos st) })
+        then (makeVal tok2 (pos lexerState) 2, r { pos = addCol 2 (pos lexerState) })
+        else (makeVal tok1 (pos lexerState) 1, st { pos = addCol 1 (pos lexerState) })
 
 singleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
 singleCharToken source = do
   (c, rest) <- getC source
   tok <- matchTok c
-  return (tok, rest {pos = addCol 1 (pos rest)})
+  return (makeVal tok (pos source) 1, rest {pos = addCol 1 (pos source)})
   where
     matchTok :: Char -> Maybe Token
     matchTok '(' = Just TokLeftParen
