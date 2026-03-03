@@ -14,7 +14,7 @@ instance HasPosition Position where
   posLine = line
   posCol = column
   posNewLine pos = pos {line = line pos + 1, column = 0}
-  posAddCol len pos = pos {column = column pos + len - 1}
+  posAddCol len pos = pos {column = column pos + len}
 
 instance HasPosition LexerState where
   posLine = line . currentPos
@@ -29,7 +29,7 @@ makeVal tok pos len =
   TokenWithPosition
     { token = tok,
       tokenStart = pos,
-      tokenEnd = addCol (len - 1) pos
+      tokenEnd = posAddCol (len - 1) pos
     }
 
 data TokenWithPosition = TokenWithPosition
@@ -75,12 +75,6 @@ parseS src = singleOrDoubleCharToken . newLexerState $ src
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
-addCol :: Int -> Position -> Position
-addCol n p = p {column = column p + n}
-
-newLinePos :: Position -> Position
-newLinePos p = p {line = line p + 1, column = 0}
-
 singleOrDoubleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
 singleOrDoubleCharToken lexerState = do
   (x, y) <- getC lexerState
@@ -94,17 +88,17 @@ singleOrDoubleCharToken lexerState = do
     matchTok _ = \_ -> singleCharToken lexerState
     weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> (LexerVal, LexerState)
     weighTok tok1 tok2 pred st = case getC st of
-      Nothing -> (makeVal tok1 (currentPos lexerState) 1, st {currentPos = addCol 1 (currentPos lexerState)})
+      Nothing -> (makeVal tok1 (currentPos lexerState) 1, posAddCol 1 st)
       Just (c, r) ->
         if pred c
-          then (makeVal tok2 (currentPos lexerState) 2, r {currentPos = addCol 2 (currentPos lexerState)})
-          else (makeVal tok1 (currentPos lexerState) 1, st {currentPos = addCol 1 (currentPos lexerState)})
+          then (makeVal tok2 (currentPos lexerState) 2, posAddCol 2 r)
+          else (makeVal tok1 (currentPos lexerState) 1, posAddCol 1 st)
 
 singleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
 singleCharToken source = do
   (c, rest) <- getC source
   tok <- matchTok c
-  return (makeVal tok (currentPos source) 1, rest {currentPos = addCol 1 (currentPos source)})
+  return (makeVal tok (currentPos source) 1, posAddCol 1 rest)
   where
     matchTok :: Char -> Maybe Token
     matchTok '(' = Just TokLeftParen
