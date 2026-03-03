@@ -29,7 +29,7 @@ data Position = Position
 
 data LexerState = LexerState
   { source :: String,
-    pos :: Position
+    currentPos :: Position
   }
   deriving (Show)
 
@@ -76,17 +76,17 @@ singleOrDoubleCharToken lexerState = do
     matchTok _ = \_ -> singleCharToken lexerState
     weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> (LexerVal, LexerState)
     weighTok tok1 tok2 pred st = case getC st of
-      Nothing -> (makeVal tok1 (pos lexerState) 1, st {pos = addCol 1 (pos lexerState)})
+      Nothing -> (makeVal tok1 (currentPos lexerState) 1, st {currentPos = addCol 1 (currentPos lexerState)})
       Just (c, r) ->
         if pred c
-          then (makeVal tok2 (pos lexerState) 2, r {pos = addCol 2 (pos lexerState)})
-          else (makeVal tok1 (pos lexerState) 1, st {pos = addCol 1 (pos lexerState)})
+          then (makeVal tok2 (currentPos lexerState) 2, r {currentPos = addCol 2 (currentPos lexerState)})
+          else (makeVal tok1 (currentPos lexerState) 1, st {currentPos = addCol 1 (currentPos lexerState)})
 
 singleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
 singleCharToken source = do
   (c, rest) <- getC source
   tok <- matchTok c
-  return (makeVal tok (pos source) 1, rest {pos = addCol 1 (pos source)})
+  return (makeVal tok (currentPos source) 1, rest {currentPos = addCol 1 (currentPos source)})
   where
     matchTok :: Char -> Maybe Token
     matchTok '(' = Just TokLeftParen
