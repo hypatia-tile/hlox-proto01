@@ -7,11 +7,11 @@ import Interp.Data.Token
 type LexerVal = TokenWithPosition
 
 makeVal :: Token -> Position -> Int -> LexerVal
-makeVal tok pos c =
+makeVal tok pos len =
   TokenWithPosition
     { token = tok,
       tokenStart = pos,
-      tokenEnd = addCol (c-1) pos
+      tokenEnd = addCol (len-1) pos
     }
 
 data TokenWithPosition = TokenWithPosition
