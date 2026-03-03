@@ -75,6 +75,12 @@ parseS src = singleOrDoubleCharToken . newLexerState $ src
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
+skipWhiteSpace :: LexerState -> Maybe (LexerVal, LexerState)
+skipWhiteSpace lexerState = case getC lexerState of
+  Nothing -> Nothing
+  Just (firstChar, rest) -> undefined
+
+
 singleOrDoubleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
 singleOrDoubleCharToken lexerState = do
   (x, y) <- getC lexerState
