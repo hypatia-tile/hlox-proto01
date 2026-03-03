@@ -75,7 +75,7 @@ test = do
   print $ parseS "<=Hello"
 
 parseS :: String -> Maybe (LexerVal, LexerState)
-parseS src = singleOrDoubleCharToken . newLexerState $ src
+parseS src = parseSingleOrDouble . newLexerState $ src
 
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
@@ -85,9 +85,9 @@ skipWhiteSpace lexerState = case getC lexerState of
   Nothing -> Nothing
   Just (firstChar, rest) -> undefined
 
-singleOrDoubleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
-singleOrDoubleCharToken lexerState = 
-  singleCharToken lexerState ?: do
+parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
+parseSingleOrDouble lexerState = 
+  parseSingle lexerState ?: do
       (x, y) <- getC lexerState
       matchTok x y
   where
@@ -105,8 +105,8 @@ singleOrDoubleCharToken lexerState =
           then (makeVal tok2 (currentPos lexerState) 2, posAddCol 2 r)
           else (makeVal tok1 (currentPos lexerState) 1, posAddCol 1 st)
 
-singleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
-singleCharToken source = do
+parseSingle :: LexerState -> Maybe (LexerVal, LexerState)
+parseSingle source = do
   (c, rest) <- getC source
   tok <- matchTok c
   return (makeVal tok (currentPos source) 1, posAddCol 1 rest)
