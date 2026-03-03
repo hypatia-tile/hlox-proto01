@@ -11,11 +11,7 @@ makeVal tok pos c =
   TokenWithPosition
     { token = tok,
       tokenStart = pos,
-      tokenEnd =
-        pos
-          { line = (line pos),
-            column = (column pos) + c - 1
-          }
+      tokenEnd = addCol (c-1) pos
     }
 
 data TokenWithPosition = TokenWithPosition
@@ -64,12 +60,12 @@ newLexerState src = LexerState src (Position 0 0)
 addCol :: Int -> Position -> Position
 addCol n p = p {column = column p + n}
 
-addLine :: Int -> Position -> Position
-addLine n p = p {line = line p + n}
+newLinePos :: Position -> Position
+newLinePos p = p {line = line p + 1, column = 0}
 
 singleOrDoubleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
 singleOrDoubleCharToken lexerState = do
-  (x,y) <- getC lexerState
+  (x, y) <- getC lexerState
   matchTok x y
   where
     matchTok :: Char -> LexerState -> Maybe (LexerVal, LexerState)
@@ -80,11 +76,11 @@ singleOrDoubleCharToken lexerState = do
     matchTok _ = \_ -> singleCharToken lexerState
     weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> (LexerVal, LexerState)
     weighTok tok1 tok2 pred st = case getC st of
-      Nothing -> (makeVal tok1 (pos lexerState) 1, st { pos = addCol 1 (pos lexerState) })
-      Just (c, r) -> 
+      Nothing -> (makeVal tok1 (pos lexerState) 1, st {pos = addCol 1 (pos lexerState)})
+      Just (c, r) ->
         if pred c
-        then (makeVal tok2 (pos lexerState) 2, r { pos = addCol 2 (pos lexerState) })
-        else (makeVal tok1 (pos lexerState) 1, st { pos = addCol 1 (pos lexerState) })
+          then (makeVal tok2 (pos lexerState) 2, r {pos = addCol 2 (pos lexerState)})
+          else (makeVal tok1 (pos lexerState) 1, st {pos = addCol 1 (pos lexerState)})
 
 singleCharToken :: LexerState -> Maybe (LexerVal, LexerState)
 singleCharToken source = do
