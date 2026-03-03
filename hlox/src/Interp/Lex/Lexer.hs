@@ -4,6 +4,24 @@ import Control.Monad
 import Control.Monad.State.Lazy
 import Interp.Data.Token
 
+class HasPosition a where
+  posLine :: a -> Int
+  posCol :: a -> Int
+  posNewLine :: a -> a
+  posAddCol :: Int -> a -> a
+
+instance HasPosition Position where
+  posLine = line
+  posCol = column
+  posNewLine pos = pos {line = line pos + 1, column = 0}
+  posAddCol len pos = pos {column = column pos + len - 1}
+
+instance HasPosition LexerState where
+  posLine = line . currentPos
+  posCol = column . currentPos
+  posNewLine state = state {currentPos = posNewLine (currentPos state)}
+  posAddCol len state = state {currentPos = posAddCol len (currentPos state)}
+
 type LexerVal = TokenWithPosition
 
 makeVal :: Token -> Position -> Int -> LexerVal
@@ -11,7 +29,7 @@ makeVal tok pos len =
   TokenWithPosition
     { token = tok,
       tokenStart = pos,
-      tokenEnd = addCol (len-1) pos
+      tokenEnd = addCol (len - 1) pos
     }
 
 data TokenWithPosition = TokenWithPosition
