@@ -48,3 +48,23 @@ data Token
     TokEOF
   deriving (Show, Eq)
 
+reservedTokens :: String -> Maybe Token
+reservedTokens "and" = Just TokAnd
+reservedTokens "class" = Just TokClass
+reservedTokens "else" = Just TokElse
+reservedTokens "false" = Just TokFalse
+reservedTokens "for" = Just TokFor
+reservedTokens "fun" = Just TokFun
+reservedTokens "if" = Just TokIf
+reservedTokens "nil" = Just TokNil
+reservedTokens "or" = Just TokOr
+reservedTokens "print" = Just TokPrint
+reservedTokens "return" = Just TokReturn
+reservedTokens "super" = Just TokSuper
+reservedTokens "this" = Just TokThis
+reservedTokens "true" = Just TokTrue
+reservedTokens "var" = Just TokVar
+reservedTokens "while" = Just TokWhile
+reservedTokens _ = Nothing
+
+

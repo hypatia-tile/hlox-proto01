@@ -84,6 +84,8 @@ test = do
   print $ parseS " \"<=He\nllo\"\n*"
   print $ parseS " 123.2\"<=He\nllo\"\n*"
   print $ parseS " 12.\"<=He\nllo\"\n*"
+  print $ parseS " print 12.\"<=He\nllo\"\n*"
+  print $ parseS " print12.\"<=He\nllo\"\n*"
 
 parseS :: String -> Maybe (LexerVal, LexerState)
 parseS= testParser . newLexerState
@@ -105,10 +107,9 @@ parseIdent lexerState =
             originalPos = currentPos lexerState
             (identStr, rest) = munchIdent (source lexerState)
             len = length identStr
-           in
-            if (hasAlpha identStr)
-              then Just (makeVal (TokIdentifier identStr) originalPos len, posAddCol len (lexerState {source = rest }))
-              else Nothing
+           in do
+            tok <- getIdent identStr
+            return (makeVal tok originalPos len, posAddCol len (lexerState {source = rest }))
         else Nothing
   where
     munchIdent :: String -> (String, String)
@@ -127,9 +128,16 @@ parseIdent lexerState =
     isAlpha :: Char -> Bool
     isAlpha c = C.isAlpha c || c == '_'
     isAlphaNum c = C.isAlphaNum c || c == '_'
-    hasAlpha :: String -> Bool
-    hasAlpha [] = False
-    hasAlpha (c:cs) = isAlpha c || hasAlpha cs
+    getIdent :: String -> Maybe Token
+    getIdent src =
+      reservedTokens src
+        ?: if hasAlpha src
+          then Just $ TokIdentifier src
+          else Nothing
+      where
+        hasAlpha :: String -> Bool
+        hasAlpha [] = False
+        hasAlpha (c:cs) = isAlpha c || hasAlpha cs
 
 parseNumber :: LexerState -> Maybe (LexerVal, LexerState)
 parseNumber lexerState =
