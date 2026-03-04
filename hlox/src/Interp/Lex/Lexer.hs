@@ -34,7 +34,7 @@ type LexerVal = TokenWithPosition
 
 lexer :: String -> [LexerVal]
 lexer source =
-  lexerHelper (skipWhiteSpace parseIdent) (newLexerState source)
+  lexerHelper (skip parseIdent) (newLexerState source)
   where
     lexerHelper :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> [LexerVal]
     lexerHelper lexer sourceState = case lexer sourceState of
@@ -148,7 +148,7 @@ parseNumber lexerState =
 
 parseString :: LexerState -> Maybe (LexerVal, LexerState)
 parseString lexerState =
-  parseSlashOrComment lexerState
+  parseSingleOrDouble lexerState
     ?: do
       (firstChar, restSource) <- getC lexerState
       if firstChar == '"'
@@ -171,31 +171,6 @@ parseString lexerState =
     calcPos [] pos = pos
     calcPos ('\n' : rest) pos = calcPos rest (posNewLine pos)
     calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
-
-parseSlashOrComment :: LexerState -> Maybe (LexerVal, LexerState)
-parseSlashOrComment lexerState =
-  parseSingleOrDouble lexerState
-    ?: do
-      (firstChar, restSource) <- getC lexerState
-      if firstChar == '/'
-        then case getC restSource of
-          Just ('/', inComment) -> (skipWhiteSpace parseSlashOrComment) =<< (skipUntilNewLine inComment)
-          _ -> Just (makeVal TokSlash (currentPos lexerState) 1, restSource)
-        else Nothing
-  where
-    skipUntilNewLine :: LexerState -> Maybe LexerState
-    skipUntilNewLine state =
-      let (ignored, rest) = sepWhile ('\n' /=) state
-       in if null (source rest)
-            then Nothing
-            else Just $ posAddCol (length ignored + 2) rest
-    sepWhile :: (Char -> Bool) -> LexerState -> (String, LexerState)
-    sepWhile isNotNewLine st = case getC st of
-      Nothing -> ("", st)
-      Just (c, st') ->
-        if isNotNewLine c
-          then let (s, st'') = sepWhile isNotNewLine st' in (c : s, st'')
-          else ("", st)
 
 parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
 parseSingleOrDouble lexerState =
@@ -234,7 +209,11 @@ parseSingle source = do
     matchTok '+' = Just TokPlus
     matchTok ';' = Just TokSemicolon
     matchTok '*' = Just TokStar
+    matchTok '/' = Just TokSlash
     matchTok _ = Nothing
+
+skip :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
+skip state = skipComment $ skipWhiteSpace state
 
 skipWhiteSpace :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
 skipWhiteSpace lexer lexerState = case getC lexerState of
@@ -244,6 +223,25 @@ skipWhiteSpace lexer lexerState = case getC lexerState of
     if isSpace c
       then skipWhiteSpace lexer (posAddCol 1 rest)
       else lexer lexerState
+
+skipComment :: (LexerState -> Maybe (LexerVal , LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
+skipComment lexer lexerState = case commentLine lexerState of
+  Nothing -> lexer lexerState
+  Just newState -> lexer newState
+  where
+    commentLine :: LexerState -> Maybe LexerState
+    commentLine state = do
+      (c1, rest1) <- getC state 
+      (c2, _) <- getC rest1
+      if c1 == c2 && c1 == '/'
+        then return $ posNewLine state { source = discardUntilNewline (source state) }
+        else return state
+    discardUntilNewline :: String -> String
+    discardUntilNewline [] = []
+    discardUntilNewline (x:xs)
+      | x == '\n' = xs
+      | otherwise = discardUntilNewline xs
+      
 
 getC :: LexerState -> Maybe (Char, LexerState)
 getC state =
