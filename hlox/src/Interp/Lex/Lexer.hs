@@ -2,7 +2,7 @@ module Interp.Lex.Lexer where
 
 import Control.Monad
 import Control.Monad.State.Lazy
-import Data.Char (isSpace)
+import Data.Char (isSpace, isDigit)
 import Interp.Data.Token
 
 infixl 9 ?:
@@ -81,6 +81,8 @@ test = do
   print $ parseS "//  <=Hello\n*"
   print $ parseS " \"<=Hello\"\n*"
   print $ parseS " \"<=He\nllo\"\n*"
+  print $ parseS " 123.2\"<=He\nllo\"\n*"
+  print $ parseS " 12.\"<=He\nllo\"\n*"
 
 parseS :: String -> Maybe (LexerVal, LexerState)
 parseS src = testParser . newLexerState $ src
@@ -89,7 +91,39 @@ newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
 testParser :: LexerState -> Maybe (LexerVal, LexerState)
-testParser = skipWhiteSpace parseString
+testParser = skipWhiteSpace parseNumber
+
+parseNumber :: LexerState -> Maybe (LexerVal, LexerState)
+parseNumber lexerState =
+  parseString lexerState
+    ?: do
+      (firstChar, _restSource) <- getC lexerState
+      if isDigit firstChar
+      then munchNumber (currentPos lexerState) lexerState
+      else Nothing
+  where
+    munchNumber :: Position -> LexerState -> Maybe (LexerVal, LexerState)
+    munchNumber originalPos numState =
+      let
+        (numPart, restSrc) = sepWhileNumDot (source numState)
+        len = length numPart
+       in
+        if null numPart
+        then Nothing
+        else Just $ (makeVal (TokNumber (read numPart)) originalPos len, posAddCol (len) (numState { source = restSrc }))
+    sepWhileNumDot :: String -> (String, String)
+    sepWhileNumDot [] = ("", "")
+    sepWhileNumDot (c:rest)
+      | isDigit c = let (c', rest') = sepWhileNumDot rest in (c:c', rest')
+      | c == '.' = case sepWhileNum rest of
+        ("", _) -> ("", c:rest)
+        (c', rest') -> (c:c', rest')
+      | otherwise = ("", c:rest)
+    sepWhileNum :: String -> (String, String)
+    sepWhileNum [] = ("", "")
+    sepWhileNum (c:rest)
+      | isDigit c = let (c', rest') = sepWhileNum rest in (c:c', rest')
+      | otherwise = ("", c:rest)
 
 parseString :: LexerState -> Maybe (LexerVal, LexerState)
 parseString lexerState =
