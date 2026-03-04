@@ -74,32 +74,43 @@ test = do
   print $ parseS ">=Hello"
   print $ parseS "\n\n<Hello"
   print $ parseS "  <=Hello"
+  print $ parseS "//  <=Hello\n*"
 
 parseS :: String -> Maybe (LexerVal, LexerState)
-parseS src = parseSingleOrDouble . newLexerState $ src
+parseS src = testParser . newLexerState $ src
 
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
+testParser :: LexerState -> Maybe (LexerVal, LexerState)
+testParser = parseSlashOrComment
+
 parseSlashOrComment :: LexerState -> Maybe (LexerVal, LexerState)
-parseSlashOrComment lexerState =
+parseSlashOrComment = skipWhiteSpace $ \lexerState ->
   parseSingleOrDouble lexerState
     ?: do
       (firstChar, restSource) <- getC lexerState
       if firstChar == '/'
       then
-        let
-          fromCur = \token n -> makeVal token (currentPos lexerState) n
-         in
-          undefined
+        case getC restSource of
+         Just ('/', inComment) -> parseSlashOrComment =<< (skipUntilNewLine inComment)
+         Just (c, nextSource) -> Just (makeVal TokSlash (currentPos lexerState) 1, restSource)
       else Nothing
   where
-    go :: LexerState -> Maybe (LexerVal, LexerState)
-    go state = case getC state of
-      Just ('/', rest) ->
-        let (_ignored, rest') = sep '\n' rest
-         in undefined
-    sep = undefined
+    skipUntilNewLine :: LexerState -> Maybe LexerState
+    skipUntilNewLine state =
+      let (ignored, rest) = sepWhile ('\n' /=) state
+       in
+        if null (source rest)
+        then Nothing
+        else Just $ posAddCol (length ignored + 2) rest
+    sepWhile :: (Char -> Bool) -> LexerState -> (String, LexerState)
+    sepWhile isNotNewLine st = case getC st of
+      Nothing -> ("", st)
+      Just (c, st') ->
+        if isNotNewLine c
+        then let (s, st'') = sepWhile isNotNewLine st' in (c:s, st'')
+        else ("", st)
 
 parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
 parseSingleOrDouble = skipWhiteSpace $ \lexerState ->
