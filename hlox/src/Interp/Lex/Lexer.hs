@@ -103,8 +103,7 @@ parseString lexerState =
     munchString :: Position -> LexerState -> Maybe (LexerVal, LexerState)
     munchString originalPos strState = do
       (strPart, restSrc) <- sepWithStr (source strState)
-      -- TODO support for newline in string
-      let newPos = posAddCol 1 (calcPos strPart (posAddCol 1 originalPos))
+      let newPos = calcPos strPart (posAddCol 1 originalPos)
       return (newLexerVal (TokString strPart) originalPos newPos, (strState {source = restSrc, currentPos = posAddCol 1 newPos}))
     sepWithStr :: String -> Maybe (String, String)
     sepWithStr str = case str of
@@ -126,7 +125,7 @@ parseSlashOrComment lexerState =
       (firstChar, restSource) <- getC lexerState
       if firstChar == '/'
         then case getC restSource of
-          Just ('/', inComment) -> parseSlashOrComment =<< (skipUntilNewLine inComment)
+          Just ('/', inComment) -> (skipWhiteSpace parseSlashOrComment) =<< (skipUntilNewLine inComment)
           _ -> Just (makeVal TokSlash (currentPos lexerState) 1, restSource)
         else Nothing
   where
