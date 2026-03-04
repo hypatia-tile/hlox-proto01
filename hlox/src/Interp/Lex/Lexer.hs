@@ -85,7 +85,7 @@ test = do
   print $ parseS " 12.\"<=He\nllo\"\n*"
 
 parseS :: String -> Maybe (LexerVal, LexerState)
-parseS src = testParser . newLexerState $ src
+parseS= testParser . newLexerState
 
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
