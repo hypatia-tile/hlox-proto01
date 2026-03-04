@@ -70,7 +70,7 @@ test = do
   print $ parseS "!=Hello"
   print $ parseS "=Hello"
   print $ parseS "==Hello"
-  print $ parseS ">Hello"
+  print $ parseS " >Hello"
   print $ parseS ">=Hello"
   print $ parseS "\n\n<Hello"
   print $ parseS "  <=Hello"
@@ -83,10 +83,10 @@ newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
 testParser :: LexerState -> Maybe (LexerVal, LexerState)
-testParser = parseSlashOrComment
+testParser = skipWhiteSpace parseSlashOrComment
 
 parseSlashOrComment :: LexerState -> Maybe (LexerVal, LexerState)
-parseSlashOrComment = skipWhiteSpace $ \lexerState ->
+parseSlashOrComment lexerState =
   parseSingleOrDouble lexerState
     ?: do
       (firstChar, restSource) <- getC lexerState
@@ -94,7 +94,7 @@ parseSlashOrComment = skipWhiteSpace $ \lexerState ->
       then
         case getC restSource of
          Just ('/', inComment) -> parseSlashOrComment =<< (skipUntilNewLine inComment)
-         Just (c, nextSource) -> Just (makeVal TokSlash (currentPos lexerState) 1, restSource)
+         _ -> Just (makeVal TokSlash (currentPos lexerState) 1, restSource)
       else Nothing
   where
     skipUntilNewLine :: LexerState -> Maybe LexerState
@@ -113,7 +113,7 @@ parseSlashOrComment = skipWhiteSpace $ \lexerState ->
         else ("", st)
 
 parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
-parseSingleOrDouble = skipWhiteSpace $ \lexerState ->
+parseSingleOrDouble lexerState =
   parseSingle lexerState ?: do
       (x, y) <- getC lexerState
       matchTok x y (currentPos lexerState)
@@ -133,7 +133,7 @@ parseSingleOrDouble = skipWhiteSpace $ \lexerState ->
           else (makeVal tok1 oldPos 1, posAddCol 1 st)
 
 parseSingle :: LexerState -> Maybe (LexerVal, LexerState)
-parseSingle= skipWhiteSpace $ \source -> do
+parseSingle source = do
   (c, rest) <- getC source
   tok <- matchTok c
   return (makeVal tok (currentPos source) 1, posAddCol 1 rest)
