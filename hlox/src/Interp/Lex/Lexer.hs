@@ -1,4 +1,4 @@
-module Interp.Lex.Lexer where
+module Interp.Lex.Lexer (lexer, TokenWithPosition(..)) where
 
 import Control.Monad
 import Control.Monad.State.Lazy
@@ -70,32 +70,6 @@ data LexerState = LexerState
     currentPos :: Position
   }
   deriving (Show)
-
-test :: IO ()
-test = do
-  print $ lexer "Hello"
-  print $ lexer "  ;Hello"
-  print $ lexer "  ,Hello"
-  print $ lexer ":Hello"
-  print $ lexer ".Hello"
-  print $ lexer "(Hello"
-  print $ lexer ")(Hello"
-  print $ lexer "!Hello"
-  print $ lexer "!=Hello"
-  print $ lexer "=Hello"
-  print $ lexer "==Hello"
-  print $ lexer " >Hello"
-  print $ lexer ">=Hello"
-  print $ lexer "\n\n<Hello"
-  print $ lexer "  <=Hello"
-  print $ lexer "//  <=Hello\n*"
-  print $ lexer " \"<=Hello\"\n*"
-  print $ lexer " \"<=He\nllo\"\n*"
-  print $ lexer " 123.2\"<=He\nllo\"\n*"
-  print $ lexer " 12.\"<=He\nllo\"\n*"
-  print $ lexer " print 12.\"<=He\nllo\"\n*"
-  print $ lexer " print12.\"<=He\nllo\"\n*"
-
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
