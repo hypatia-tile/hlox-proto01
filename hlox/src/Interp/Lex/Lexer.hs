@@ -3,6 +3,7 @@ module Interp.Lex.Lexer where
 import Control.Monad
 import Control.Monad.State.Lazy
 import Interp.Data.Token
+import Data.Char (isSpace)
 
 infixl 9 ?:
 (?:) :: Maybe a -> Maybe a -> Maybe a
@@ -59,8 +60,8 @@ data LexerState = LexerState
 test :: IO ()
 test = do
   print $ parseS "Hello"
-  print $ parseS ";Hello"
-  print $ parseS ",Hello"
+  print $ parseS "  ;Hello"
+  print $ parseS "  ,Hello"
   print $ parseS ":Hello"
   print $ parseS ".Hello"
   print $ parseS "(Hello"
@@ -71,19 +72,14 @@ test = do
   print $ parseS "==Hello"
   print $ parseS ">Hello"
   print $ parseS ">=Hello"
-  print $ parseS "<Hello"
-  print $ parseS "<=Hello"
+  print $ parseS "\n\n<Hello"
+  print $ parseS "  <=Hello"
 
 parseS :: String -> Maybe (LexerVal, LexerState)
 parseS src = parseSingleOrDouble . newLexerState $ src
 
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
-
-skipWhiteSpace :: LexerState -> Maybe (LexerVal, LexerState)
-skipWhiteSpace lexerState = case getC lexerState of
-  Nothing -> Nothing
-  Just (firstChar, rest) -> undefined
 
 parseSlashOrComment :: LexerState -> Maybe (LexerVal, LexerState)
 parseSlashOrComment lexerState =
@@ -106,27 +102,27 @@ parseSlashOrComment lexerState =
     sep = undefined
 
 parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
-parseSingleOrDouble lexerState = 
+parseSingleOrDouble = skipWhiteSpace $ \lexerState ->
   parseSingle lexerState ?: do
       (x, y) <- getC lexerState
-      matchTok x y
+      matchTok x y (currentPos lexerState)
   where
-    matchTok :: Char -> LexerState -> Maybe (LexerVal, LexerState)
-    matchTok '!' = Just . weighTok TokBang TokBangEqual ('=' ==)
-    matchTok '=' = Just . weighTok TokEqual TokEqualEqual ('=' ==)
-    matchTok '>' = Just . weighTok TokGreater TokGreaterEqual ('=' ==)
-    matchTok '<' = Just . weighTok TokLess TokLessEqual ('=' ==)
-    matchTok _  = \_ -> Nothing
-    weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> (LexerVal, LexerState)
-    weighTok tok1 tok2 pred st = case getC st of
-      Nothing -> (makeVal tok1 (currentPos lexerState) 1, posAddCol 1 st)
+    matchTok :: Char -> LexerState -> Position -> Maybe (LexerVal, LexerState)
+    matchTok '!' pos = Just . weighTok TokBang TokBangEqual ('=' ==) pos
+    matchTok '=' pos = Just . weighTok TokEqual TokEqualEqual ('=' ==) pos
+    matchTok '>' pos = Just . weighTok TokGreater TokGreaterEqual ('=' ==) pos
+    matchTok '<' pos = Just . weighTok TokLess TokLessEqual ('=' ==) pos
+    matchTok _  _ = \_ -> Nothing
+    weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> Position -> (LexerVal, LexerState)
+    weighTok tok1 tok2 pred st oldPos = case getC st of
+      Nothing -> (makeVal tok1 oldPos 1, posAddCol 1 st)
       Just (c, r) ->
         if pred c
-          then (makeVal tok2 (currentPos lexerState) 2, posAddCol 2 r)
-          else (makeVal tok1 (currentPos lexerState) 1, posAddCol 1 st)
+          then (makeVal tok2 oldPos 2, posAddCol 2 r)
+          else (makeVal tok1 oldPos 1, posAddCol 1 st)
 
 parseSingle :: LexerState -> Maybe (LexerVal, LexerState)
-parseSingle source = do
+parseSingle= skipWhiteSpace $ \source -> do
   (c, rest) <- getC source
   tok <- matchTok c
   return (makeVal tok (currentPos source) 1, posAddCol 1 rest)
@@ -143,6 +139,16 @@ parseSingle source = do
     matchTok ';' = Just TokSemicolon
     matchTok '*' = Just TokStar
     matchTok _ = Nothing
+
+skipWhiteSpace :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
+skipWhiteSpace lexer lexerState = case getC lexerState of
+  Nothing -> Nothing
+  Just ('\n', rest) -> skipWhiteSpace lexer (posNewLine rest)
+  Just (c, rest) ->
+    if isSpace c
+    then skipWhiteSpace lexer (posAddCol 1 rest)
+    else lexer lexerState
+
 
 getC :: LexerState -> Maybe (Char, LexerState)
 getC state =
