@@ -2,10 +2,11 @@ module Interp.Lex.Lexer where
 
 import Control.Monad
 import Control.Monad.State.Lazy
-import Interp.Data.Token
 import Data.Char (isSpace)
+import Interp.Data.Token
 
 infixl 9 ?:
+
 (?:) :: Maybe a -> Maybe a -> Maybe a
 Nothing ?: fallback = fallback
 (Just x) ?: _ = Just x
@@ -29,6 +30,9 @@ instance HasPosition LexerState where
   posAddCol len state = state {currentPos = posAddCol len (currentPos state)}
 
 type LexerVal = TokenWithPosition
+
+newLexerVal :: Token -> Position -> Position -> LexerVal
+newLexerVal = TokenWithPosition
 
 makeVal :: Token -> Position -> Int -> LexerVal
 makeVal tok pos len =
@@ -75,6 +79,8 @@ test = do
   print $ parseS "\n\n<Hello"
   print $ parseS "  <=Hello"
   print $ parseS "//  <=Hello\n*"
+  print $ parseS " \"<=Hello\"\n*"
+  print $ parseS " \"<=He\nllo\"\n*"
 
 parseS :: String -> Maybe (LexerVal, LexerState)
 parseS src = testParser . newLexerState $ src
@@ -83,7 +89,35 @@ newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
 testParser :: LexerState -> Maybe (LexerVal, LexerState)
-testParser = skipWhiteSpace parseSlashOrComment
+testParser = skipWhiteSpace parseString
+
+parseString :: LexerState -> Maybe (LexerVal, LexerState)
+parseString lexerState =
+  parseSlashOrComment lexerState
+    ?: do
+      (firstChar, restSource) <- getC lexerState
+      if firstChar == '"'
+        then munchString (currentPos lexerState) restSource
+        else Nothing
+  where
+    munchString :: Position -> LexerState -> Maybe (LexerVal, LexerState)
+    munchString originalPos strState = do
+      (strPart, restSrc) <- sepWithStr (source strState)
+      -- TODO support for newline in string
+      let newPos = posAddCol 1 (calcPos strPart (posAddCol 1 originalPos))
+      return (newLexerVal (TokString strPart) originalPos newPos, (strState {source = restSrc, currentPos = posAddCol 1 newPos}))
+    sepWithStr :: String -> Maybe (String, String)
+    sepWithStr str = case str of
+      [] -> Nothing
+      '"' : rest -> Just ([], rest)
+      c : rest -> do
+        (s, r) <- sepWithStr rest
+        return (c : s, r)
+    calcPos :: String -> Position -> Position
+    calcPos [] pos = pos
+    calcPos ('\n' : rest) pos = calcPos rest (posNewLine pos)
+    calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
+
 
 parseSlashOrComment :: LexerState -> Maybe (LexerVal, LexerState)
 parseSlashOrComment lexerState =
@@ -91,39 +125,37 @@ parseSlashOrComment lexerState =
     ?: do
       (firstChar, restSource) <- getC lexerState
       if firstChar == '/'
-      then
-        case getC restSource of
-         Just ('/', inComment) -> parseSlashOrComment =<< (skipUntilNewLine inComment)
-         _ -> Just (makeVal TokSlash (currentPos lexerState) 1, restSource)
-      else Nothing
+        then case getC restSource of
+          Just ('/', inComment) -> parseSlashOrComment =<< (skipUntilNewLine inComment)
+          _ -> Just (makeVal TokSlash (currentPos lexerState) 1, restSource)
+        else Nothing
   where
     skipUntilNewLine :: LexerState -> Maybe LexerState
     skipUntilNewLine state =
       let (ignored, rest) = sepWhile ('\n' /=) state
-       in
-        if null (source rest)
-        then Nothing
-        else Just $ posAddCol (length ignored + 2) rest
+       in if null (source rest)
+            then Nothing
+            else Just $ posAddCol (length ignored + 2) rest
     sepWhile :: (Char -> Bool) -> LexerState -> (String, LexerState)
     sepWhile isNotNewLine st = case getC st of
       Nothing -> ("", st)
       Just (c, st') ->
         if isNotNewLine c
-        then let (s, st'') = sepWhile isNotNewLine st' in (c:s, st'')
-        else ("", st)
+          then let (s, st'') = sepWhile isNotNewLine st' in (c : s, st'')
+          else ("", st)
 
 parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
 parseSingleOrDouble lexerState =
   parseSingle lexerState ?: do
-      (x, y) <- getC lexerState
-      matchTok x y (currentPos lexerState)
+    (x, y) <- getC lexerState
+    matchTok x y (currentPos lexerState)
   where
     matchTok :: Char -> LexerState -> Position -> Maybe (LexerVal, LexerState)
     matchTok '!' pos = Just . weighTok TokBang TokBangEqual ('=' ==) pos
     matchTok '=' pos = Just . weighTok TokEqual TokEqualEqual ('=' ==) pos
     matchTok '>' pos = Just . weighTok TokGreater TokGreaterEqual ('=' ==) pos
     matchTok '<' pos = Just . weighTok TokLess TokLessEqual ('=' ==) pos
-    matchTok _  _ = \_ -> Nothing
+    matchTok _ _ = \_ -> Nothing
     weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> Position -> (LexerVal, LexerState)
     weighTok tok1 tok2 pred st oldPos = case getC st of
       Nothing -> (makeVal tok1 oldPos 1, posAddCol 1 st)
@@ -157,9 +189,8 @@ skipWhiteSpace lexer lexerState = case getC lexerState of
   Just ('\n', rest) -> skipWhiteSpace lexer (posNewLine rest)
   Just (c, rest) ->
     if isSpace c
-    then skipWhiteSpace lexer (posAddCol 1 rest)
-    else lexer lexerState
-
+      then skipWhiteSpace lexer (posAddCol 1 rest)
+      else lexer lexerState
 
 getC :: LexerState -> Maybe (Char, LexerState)
 getC state =
