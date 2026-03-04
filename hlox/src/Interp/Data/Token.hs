@@ -24,7 +24,7 @@ data Token
   | TokLess
   | TokLessEqual
   | -- Literals.
-    TokIdentifier
+    TokIdentifier String
   | TokString String
   | TokNumber Double
   | -- Keywords.

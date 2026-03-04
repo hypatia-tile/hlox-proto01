@@ -3,6 +3,7 @@ module Interp.Lex.Lexer where
 import Control.Monad
 import Control.Monad.State.Lazy
 import Data.Char (isDigit, isSpace)
+import qualified Data.Char as C
 import Interp.Data.Token
 
 infixl 9 ?:
@@ -91,7 +92,44 @@ newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
 testParser :: LexerState -> Maybe (LexerVal, LexerState)
-testParser = skipWhiteSpace parseNumber
+testParser = skipWhiteSpace parseIdent
+
+parseIdent :: LexerState -> Maybe (LexerVal, LexerState)
+parseIdent lexerState =
+  parseNumber lexerState
+    ?: do
+      (firstChar, _restSource) <- getC lexerState
+      if isAlpha firstChar || firstChar == '_'
+        then
+          let
+            originalPos = currentPos lexerState
+            (identStr, rest) = munchIdent (source lexerState)
+            len = length identStr
+           in
+            if (hasAlpha identStr)
+              then Just (makeVal (TokIdentifier identStr) originalPos len, posAddCol len (lexerState {source = rest }))
+              else Nothing
+        else Nothing
+  where
+    munchIdent :: String -> (String, String)
+    munchIdent [] = ("", "")
+    munchIdent (x:xs) =
+      if isAlpha x
+      then let (x', xs') = munchIdent' xs in (x:x', xs')
+      else ("", x:xs)
+      where
+        munchIdent' :: String -> (String, String)
+        munchIdent' [] = ("", "")
+        munchIdent' (x:xs) = 
+          if isAlphaNum x
+            then let (x', xs') = munchIdent' xs in (x:x', xs')
+            else ("", x:xs)
+    isAlpha :: Char -> Bool
+    isAlpha c = C.isAlpha c || c == '_'
+    isAlphaNum c = C.isAlphaNum c || c == '_'
+    hasAlpha :: String -> Bool
+    hasAlpha [] = False
+    hasAlpha (c:cs) = isAlpha c || hasAlpha cs
 
 parseNumber :: LexerState -> Maybe (LexerVal, LexerState)
 parseNumber lexerState =
