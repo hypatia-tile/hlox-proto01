@@ -32,6 +32,15 @@ instance HasPosition LexerState where
 
 type LexerVal = TokenWithPosition
 
+lexer :: String -> [LexerVal]
+lexer source =
+  lexerHelper (skipWhiteSpace parseIdent) (newLexerState source)
+  where
+    lexerHelper :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> [LexerVal]
+    lexerHelper lexer sourceState = case lexer sourceState of
+      Nothing -> []
+      Just (token, newState) -> token : lexerHelper lexer newState
+
 newLexerVal :: Token -> Position -> Position -> LexerVal
 newLexerVal = TokenWithPosition
 
@@ -64,37 +73,31 @@ data LexerState = LexerState
 
 test :: IO ()
 test = do
-  print $ parseS "Hello"
-  print $ parseS "  ;Hello"
-  print $ parseS "  ,Hello"
-  print $ parseS ":Hello"
-  print $ parseS ".Hello"
-  print $ parseS "(Hello"
-  print $ parseS ")(Hello"
-  print $ parseS "!Hello"
-  print $ parseS "!=Hello"
-  print $ parseS "=Hello"
-  print $ parseS "==Hello"
-  print $ parseS " >Hello"
-  print $ parseS ">=Hello"
-  print $ parseS "\n\n<Hello"
-  print $ parseS "  <=Hello"
-  print $ parseS "//  <=Hello\n*"
-  print $ parseS " \"<=Hello\"\n*"
-  print $ parseS " \"<=He\nllo\"\n*"
-  print $ parseS " 123.2\"<=He\nllo\"\n*"
-  print $ parseS " 12.\"<=He\nllo\"\n*"
-  print $ parseS " print 12.\"<=He\nllo\"\n*"
-  print $ parseS " print12.\"<=He\nllo\"\n*"
-
-parseS :: String -> Maybe (LexerVal, LexerState)
-parseS= testParser . newLexerState
+  print $ lexer "Hello"
+  print $ lexer "  ;Hello"
+  print $ lexer "  ,Hello"
+  print $ lexer ":Hello"
+  print $ lexer ".Hello"
+  print $ lexer "(Hello"
+  print $ lexer ")(Hello"
+  print $ lexer "!Hello"
+  print $ lexer "!=Hello"
+  print $ lexer "=Hello"
+  print $ lexer "==Hello"
+  print $ lexer " >Hello"
+  print $ lexer ">=Hello"
+  print $ lexer "\n\n<Hello"
+  print $ lexer "  <=Hello"
+  print $ lexer "//  <=Hello\n*"
+  print $ lexer " \"<=Hello\"\n*"
+  print $ lexer " \"<=He\nllo\"\n*"
+  print $ lexer " 123.2\"<=He\nllo\"\n*"
+  print $ lexer " 12.\"<=He\nllo\"\n*"
+  print $ lexer " print 12.\"<=He\nllo\"\n*"
+  print $ lexer " print12.\"<=He\nllo\"\n*"
 
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
-
-testParser :: LexerState -> Maybe (LexerVal, LexerState)
-testParser = skipWhiteSpace parseIdent
 
 parseIdent :: LexerState -> Maybe (LexerVal, LexerState)
 parseIdent lexerState =
