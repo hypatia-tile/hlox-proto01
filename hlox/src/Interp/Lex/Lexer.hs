@@ -2,7 +2,7 @@ module Interp.Lex.Lexer where
 
 import Control.Monad
 import Control.Monad.State.Lazy
-import Data.Char (isSpace, isDigit)
+import Data.Char (isDigit, isSpace)
 import Interp.Data.Token
 
 infixl 9 ?:
@@ -99,31 +99,29 @@ parseNumber lexerState =
     ?: do
       (firstChar, _restSource) <- getC lexerState
       if isDigit firstChar
-      then munchNumber (currentPos lexerState) lexerState
-      else Nothing
+        then munchNumber (currentPos lexerState) lexerState
+        else Nothing
   where
     munchNumber :: Position -> LexerState -> Maybe (LexerVal, LexerState)
     munchNumber originalPos numState =
-      let
-        (numPart, restSrc) = sepWhileNumDot (source numState)
-        len = length numPart
-       in
-        if null numPart
-        then Nothing
-        else Just $ (makeVal (TokNumber (read numPart)) originalPos len, posAddCol (len) (numState { source = restSrc }))
+      let (numPart, restSrc) = sepWhileNumDot (source numState)
+          len = length numPart
+       in if null numPart
+            then Nothing
+            else Just $ (makeVal (TokNumber (read numPart)) originalPos len, posAddCol (len) (numState {source = restSrc}))
     sepWhileNumDot :: String -> (String, String)
     sepWhileNumDot [] = ("", "")
-    sepWhileNumDot (c:rest)
-      | isDigit c = let (c', rest') = sepWhileNumDot rest in (c:c', rest')
+    sepWhileNumDot (c : rest)
+      | isDigit c = let (c', rest') = sepWhileNumDot rest in (c : c', rest')
       | c == '.' = case sepWhileNum rest of
-        ("", _) -> ("", c:rest)
-        (c', rest') -> (c:c', rest')
-      | otherwise = ("", c:rest)
+          ("", _) -> ("", c : rest)
+          (c', rest') -> (c : c', rest')
+      | otherwise = ("", c : rest)
     sepWhileNum :: String -> (String, String)
     sepWhileNum [] = ("", "")
-    sepWhileNum (c:rest)
-      | isDigit c = let (c', rest') = sepWhileNum rest in (c:c', rest')
-      | otherwise = ("", c:rest)
+    sepWhileNum (c : rest)
+      | isDigit c = let (c', rest') = sepWhileNum rest in (c : c', rest')
+      | otherwise = ("", c : rest)
 
 parseString :: LexerState -> Maybe (LexerVal, LexerState)
 parseString lexerState =
@@ -150,7 +148,6 @@ parseString lexerState =
     calcPos [] pos = pos
     calcPos ('\n' : rest) pos = calcPos rest (posNewLine pos)
     calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
-
 
 parseSlashOrComment :: LexerState -> Maybe (LexerVal, LexerState)
 parseSlashOrComment lexerState =
