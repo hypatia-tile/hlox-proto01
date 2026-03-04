@@ -57,13 +57,19 @@ data TokenWithPosition = TokenWithPosition
     tokenStart :: Position,
     tokenEnd :: Position
   }
-  deriving (Show)
+
+instance Show TokenWithPosition where
+  show (TokenWithPosition token tokenStart tokenEnd) =
+    show tokenStart <> "-" <> show tokenEnd <> ": " <> show token
 
 data Position = Position
   { line :: Int,
     column :: Int
   }
-  deriving (Show)
+
+instance Show Position where
+  show (Position line col) =
+    "(" <> show line <> "," <> show col <> ")"
 
 data LexerState = LexerState
   { source :: String,
