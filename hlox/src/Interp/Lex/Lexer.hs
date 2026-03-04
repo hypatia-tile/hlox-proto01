@@ -85,6 +85,26 @@ skipWhiteSpace lexerState = case getC lexerState of
   Nothing -> Nothing
   Just (firstChar, rest) -> undefined
 
+parseSlashOrComment :: LexerState -> Maybe (LexerVal, LexerState)
+parseSlashOrComment lexerState =
+  parseSingleOrDouble lexerState
+    ?: do
+      (firstChar, restSource) <- getC lexerState
+      if firstChar == '/'
+      then
+        let
+          fromCur = \token n -> makeVal token (currentPos lexerState) n
+         in
+          undefined
+      else Nothing
+  where
+    go :: LexerState -> Maybe (LexerVal, LexerState)
+    go state = case getC state of
+      Just ('/', rest) ->
+        let (_ignored, rest') = sep '\n' rest
+         in undefined
+    sep = undefined
+
 parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
 parseSingleOrDouble lexerState = 
   parseSingle lexerState ?: do
