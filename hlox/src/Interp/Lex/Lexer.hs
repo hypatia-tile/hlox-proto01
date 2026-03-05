@@ -83,7 +83,7 @@ parseIdent :: LexerState -> Maybe (LexerVal, LexerState)
 parseIdent lexerState =
   parseNumber lexerState
     ?: do
-      (firstChar, _restSource) <- getC lexerState
+      (firstChar, _restSource) <- getC (source lexerState)
       if isAlpha firstChar || firstChar == '_'
         then
           let
@@ -126,7 +126,7 @@ parseNumber :: LexerState -> Maybe (LexerVal, LexerState)
 parseNumber lexerState =
   parseString lexerState
     ?: do
-      (firstChar, _restSource) <- getC lexerState
+      (firstChar, _restSource) <- getC (source lexerState)
       if isDigit firstChar
         then munchNumber (currentPos lexerState) lexerState
         else Nothing
@@ -154,11 +154,11 @@ parseNumber lexerState =
 
 parseString :: LexerState -> Maybe (LexerVal, LexerState)
 parseString lexerState =
-  parseSingleOrDouble lexerState
+  parseSingle lexerState
     ?: do
-      (firstChar, restSource) <- getC lexerState
+      (firstChar, restSource) <- getC (source lexerState)
       if firstChar == '"'
-        then munchString (currentPos lexerState) restSource
+        then munchString (currentPos lexerState) (lexerState { source = restSource })
         else Nothing
   where
     munchString :: Position -> LexerState -> Maybe (LexerVal, LexerState)
@@ -178,56 +178,62 @@ parseString lexerState =
     calcPos ('\n' : rest) pos = calcPos rest (posNewLine pos)
     calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
 
-parseSingleOrDouble :: LexerState -> Maybe (LexerVal, LexerState)
-parseSingleOrDouble lexerState =
-  parseSingle lexerState ?: do
-    (x, y) <- getC lexerState
-    matchTok x y (currentPos lexerState)
-  where
-    matchTok :: Char -> LexerState -> Position -> Maybe (LexerVal, LexerState)
-    matchTok '!' pos = Just . weighTok TokBang TokBangEqual ('=' ==) pos
-    matchTok '=' pos = Just . weighTok TokEqual TokEqualEqual ('=' ==) pos
-    matchTok '>' pos = Just . weighTok TokGreater TokGreaterEqual ('=' ==) pos
-    matchTok '<' pos = Just . weighTok TokLess TokLessEqual ('=' ==) pos
-    matchTok _ _ = \_ -> Nothing
-    weighTok :: Token -> Token -> (Char -> Bool) -> LexerState -> Position -> (LexerVal, LexerState)
-    weighTok tok1 tok2 pred st oldPos = case getC st of
-      Nothing -> (makeVal tok1 oldPos 1, posAddCol 1 st)
-      Just (c, r) ->
-        if pred c
-          then (makeVal tok2 oldPos 2, posAddCol 2 r)
-          else (makeVal tok1 oldPos 1, posAddCol 1 st)
-
 parseSingle :: LexerState -> Maybe (LexerVal, LexerState)
-parseSingle source = do
-  (c, rest) <- getC source
-  tok <- matchTok c
-  return (makeVal tok (currentPos source) 1, posAddCol 1 rest)
+parseSingle sourceState =
+  parseDouble sourceState ?: do
+    (c, rest) <- getC (source sourceState)
+    tok <- matchTok c
+    return (makeVal tok (currentPos sourceState) 1, posAddCol 1 (sourceState { source = rest}))
+    where
+      matchTok :: Char -> Maybe Token
+      matchTok '(' = Just TokLeftParen
+      matchTok ')' = Just TokRightParen
+      matchTok '{' = Just TokLeftBrace
+      matchTok '}' = Just TokRightBrace
+      matchTok ',' = Just TokComma
+      matchTok '.' = Just TokDot
+      matchTok '-' = Just TokMinus
+      matchTok '+' = Just TokPlus
+      matchTok ';' = Just TokSemicolon
+      matchTok '*' = Just TokStar
+      matchTok '!' = Just TokBang
+      matchTok '=' = Just TokEqual
+      matchTok '>' = Just TokGreater
+      matchTok '<' = Just TokLess
+      matchTok '/' = Just TokSlash
+      matchTok _ = Nothing
+
+parseDouble :: LexerState -> Maybe (LexerVal, LexerState)
+parseDouble lexerState = do
+    (fstChar, restStr) <- getC (source lexerState)
+    (secChar, restStr') <- matchTok fstChar restStr
+    tok <- go secChar
+    let originalPos = currentPos lexerState
+    return (makeVal tok originalPos 2, posAddCol 2 (lexerState {source = restStr'}))
   where
-    matchTok :: Char -> Maybe Token
-    matchTok '(' = Just TokLeftParen
-    matchTok ')' = Just TokRightParen
-    matchTok '{' = Just TokLeftBrace
-    matchTok '}' = Just TokRightBrace
-    matchTok ',' = Just TokComma
-    matchTok '.' = Just TokDot
-    matchTok '-' = Just TokMinus
-    matchTok '+' = Just TokPlus
-    matchTok ';' = Just TokSemicolon
-    matchTok '*' = Just TokStar
-    matchTok '/' = Just TokSlash
-    matchTok _ = Nothing
+    matchTok :: Char -> String -> Maybe (String, String)
+    matchTok c restStr
+      | c `elem` "!=><" = case restStr of
+        ('=':restStr') -> Just (c:['='], restStr')
+        _ -> Nothing
+      | otherwise = Nothing
+    go :: String -> Maybe Token
+    go "!=" = Just TokBangEqual
+    go "==" = Just TokEqualEqual
+    go ">=" = Just TokGreaterEqual
+    go "<=" = Just TokLessEqual
+    go _ = Nothing
 
 skip :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
 skip lexer = lexer . skipComment . skipWhiteSpace
 
 skipWhiteSpace :: LexerState -> LexerState
-skipWhiteSpace lexerState = case getC lexerState of
+skipWhiteSpace lexerState = case getC (source lexerState) of
   Nothing -> lexerState
-  Just ('\n', rest) -> skipWhiteSpace (posNewLine rest)
+  Just ('\n', rest) -> skipWhiteSpace (lexerState { source = rest})
   Just (c, rest) ->
     if isSpace c
-      then skipWhiteSpace (posAddCol 1 rest)
+      then skipWhiteSpace (posAddCol 1 (lexerState { source = rest }))
       else lexerState
 
 skipComment :: LexerState -> LexerState
@@ -237,10 +243,10 @@ skipComment lexerState = case commentLine lexerState of
   where
     commentLine :: LexerState -> Maybe LexerState
     commentLine state = do
-      (c1, rest1) <- getC state 
+      (c1, rest1) <- getC (source state)
       (c2, rest2) <- getC rest1
       if c1 == '/' && c2 == '/'
-        then return $ posNewLine state { source = discardUntilNewline (source rest2) }
+        then return $ posNewLine state { source = discardUntilNewline rest2 }
         else Nothing
     discardUntilNewline :: String -> String
     discardUntilNewline [] = []
@@ -248,9 +254,9 @@ skipComment lexerState = case commentLine lexerState of
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
 
-getC :: LexerState -> Maybe (Char, LexerState)
+getC :: String -> Maybe (Char, String)
 getC state =
-  let src = source state
+  let src = state
    in case src of
         [] -> Nothing
-        x : xs -> Just $ (x, state {source = xs})
+        x : xs -> Just (x, xs)
