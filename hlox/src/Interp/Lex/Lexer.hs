@@ -219,35 +219,34 @@ parseSingle source = do
     matchTok _ = Nothing
 
 skip :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
-skip state = skipComment $ skipWhiteSpace state
+skip lexer = lexer . skipComment . skipWhiteSpace
 
-skipWhiteSpace :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
-skipWhiteSpace lexer lexerState = case getC lexerState of
-  Nothing -> Nothing
-  Just ('\n', rest) -> skipWhiteSpace lexer (posNewLine rest)
+skipWhiteSpace :: LexerState -> LexerState
+skipWhiteSpace lexerState = case getC lexerState of
+  Nothing -> lexerState
+  Just ('\n', rest) -> skipWhiteSpace (posNewLine rest)
   Just (c, rest) ->
     if isSpace c
-      then skipWhiteSpace lexer (posAddCol 1 rest)
-      else lexer lexerState
+      then skipWhiteSpace (posAddCol 1 rest)
+      else lexerState
 
-skipComment :: (LexerState -> Maybe (LexerVal , LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
-skipComment lexer lexerState = case commentLine lexerState of
-  Nothing -> lexer lexerState
-  Just newState -> lexer newState
+skipComment :: LexerState -> LexerState
+skipComment lexerState = case commentLine lexerState of
+  Nothing -> lexerState
+  Just newState -> newState
   where
     commentLine :: LexerState -> Maybe LexerState
     commentLine state = do
       (c1, rest1) <- getC state 
-      (c2, _) <- getC rest1
-      if c1 == c2 && c1 == '/'
-        then return $ posNewLine state { source = discardUntilNewline (source state) }
-        else return state
+      (c2, rest2) <- getC rest1
+      if c1 == '/' && c2 == '/'
+        then return $ posNewLine state { source = discardUntilNewline (source rest2) }
+        else Nothing
     discardUntilNewline :: String -> String
     discardUntilNewline [] = []
     discardUntilNewline (x:xs)
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
-      
 
 getC :: LexerState -> Maybe (Char, LexerState)
 getC state =
