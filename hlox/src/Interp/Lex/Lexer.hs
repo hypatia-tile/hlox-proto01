@@ -1,4 +1,4 @@
-module Interp.Lex.Lexer (lexer, TokenWithPosition(..)) where
+module Interp.Lex.Lexer (lexer, TokenWithPosition (..)) where
 
 import Control.Monad
 import Control.Monad.State.Lazy
@@ -44,7 +44,6 @@ lexer source =
 newLexerVal :: Token -> Position -> Position -> LexerVal
 newLexerVal = TokenWithPosition
 
-
 -- | Effectively make new LexerVal with LexerState
 makeValWithState :: Position -> (Token, Int) -> String -> (LexerVal, LexerState)
 makeValWithState basePos (tok, len) restStr =
@@ -82,44 +81,44 @@ data LexerState = LexerState
     currentPos :: Position
   }
   deriving (Show)
+
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
 parser :: LexerState -> Maybe (LexerVal, LexerState)
 parser state =
   parseDouble state
-  ?: parseSingle state
-  ?: parseString state
-  ?: parseNumber state
-  ?: parseIdent state
+    ?: parseSingle state
+    ?: parseString state
+    ?: parseNumber state
+    ?: parseIdent state
 
 parseIdent :: LexerState -> Maybe (LexerVal, LexerState)
 parseIdent lexerState = do
   (firstChar, _restSource) <- getC (source lexerState)
   if isAlpha firstChar || firstChar == '_'
     then
-      let
-        originalPos = currentPos lexerState
-        (identStr, rest) = munchIdent (source lexerState)
-        len = length identStr
+      let originalPos = currentPos lexerState
+          (identStr, rest) = munchIdent (source lexerState)
+          len = length identStr
        in do
-        tok <- getIdent identStr
-        return $ makeValWithState originalPos (tok, len) rest
+            tok <- getIdent identStr
+            return $ makeValWithState originalPos (tok, len) rest
     else Nothing
   where
     munchIdent :: String -> (String, String)
     munchIdent [] = ("", "")
-    munchIdent (x:xs) =
+    munchIdent (x : xs) =
       if isAlpha x
-      then let (x', xs') = munchIdent' xs in (x:x', xs')
-      else ("", x:xs)
+        then let (x', xs') = munchIdent' xs in (x : x', xs')
+        else ("", x : xs)
       where
         munchIdent' :: String -> (String, String)
         munchIdent' [] = ("", "")
-        munchIdent' (x:xs) = 
+        munchIdent' (x : xs) =
           if isAlphaNum x
-            then let (x', xs') = munchIdent' xs in (x:x', xs')
-            else ("", x:xs)
+            then let (x', xs') = munchIdent' xs in (x : x', xs')
+            else ("", x : xs)
     isAlpha :: Char -> Bool
     isAlpha c = C.isAlpha c || c == '_'
     isAlphaNum c = C.isAlphaNum c || c == '_'
@@ -132,7 +131,7 @@ parseIdent lexerState = do
       where
         hasAlpha :: String -> Bool
         hasAlpha [] = False
-        hasAlpha (c:cs) = isAlpha c || hasAlpha cs
+        hasAlpha (c : cs) = isAlpha c || hasAlpha cs
 
 parseNumber :: LexerState -> Maybe (LexerVal, LexerState)
 parseNumber lexerState = do
@@ -166,7 +165,7 @@ parseString :: LexerState -> Maybe (LexerVal, LexerState)
 parseString lexerState = do
   (firstChar, restSource) <- getC (source lexerState)
   if firstChar == '"'
-    then munchString (currentPos lexerState) (lexerState { source = restSource })
+    then munchString (currentPos lexerState) (lexerState {source = restSource})
     else Nothing
   where
     munchString :: Position -> LexerState -> Maybe (LexerVal, LexerState)
@@ -212,17 +211,17 @@ parseSingle sourceState = do
 
 parseDouble :: LexerState -> Maybe (LexerVal, LexerState)
 parseDouble lexerState = do
-    (fstChar, restStr) <- getC (source lexerState)
-    (secChar, restStr') <- matchDouble fstChar restStr
-    tok <- matchTok secChar
-    let originalPos = currentPos lexerState
-    return $ makeValWithState originalPos (tok, 2) restStr'
+  (fstChar, restStr) <- getC (source lexerState)
+  (secChar, restStr') <- matchDouble fstChar restStr
+  tok <- matchTok secChar
+  let originalPos = currentPos lexerState
+  return $ makeValWithState originalPos (tok, 2) restStr'
   where
     matchDouble :: Char -> String -> Maybe (String, String)
     matchDouble c restStr
       | c `elem` "!=><" = case restStr of
-        ('=':restStr') -> Just (c:['='], restStr')
-        _ -> Nothing
+          ('=' : restStr') -> Just (c : ['='], restStr')
+          _ -> Nothing
       | otherwise = Nothing
     matchTok :: String -> Maybe Token
     matchTok "!=" = Just TokBangEqual
@@ -237,10 +236,10 @@ skip lexer = lexer . skipComment . skipWhiteSpace
 skipWhiteSpace :: LexerState -> LexerState
 skipWhiteSpace lexerState = case getC (source lexerState) of
   Nothing -> lexerState
-  Just ('\n', rest) -> skipWhiteSpace (lexerState { source = rest})
+  Just ('\n', rest) -> skipWhiteSpace (lexerState {source = rest})
   Just (c, rest) ->
     if isSpace c
-      then skipWhiteSpace (posAddCol 1 (lexerState { source = rest }))
+      then skipWhiteSpace (posAddCol 1 (lexerState {source = rest}))
       else lexerState
 
 skipComment :: LexerState -> LexerState
@@ -253,11 +252,11 @@ skipComment lexerState = case commentLine lexerState of
       (c1, rest1) <- getC (source state)
       (c2, rest2) <- getC rest1
       if c1 == '/' && c2 == '/'
-        then return $ posNewLine state { source = discardUntilNewline rest2 }
+        then return $ posNewLine state {source = discardUntilNewline rest2}
         else Nothing
     discardUntilNewline :: String -> String
     discardUntilNewline [] = []
-    discardUntilNewline (x:xs)
+    discardUntilNewline (x : xs)
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
 
