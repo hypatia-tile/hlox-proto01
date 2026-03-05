@@ -34,7 +34,7 @@ type LexerVal = TokenWithPosition
 
 lexer :: String -> [LexerVal]
 lexer source =
-  lexerHelper (skip parseIdent) (newLexerState source)
+  lexerHelper (skip parser) (newLexerState source)
   where
     lexerHelper :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> [LexerVal]
     lexerHelper lexer sourceState = case lexer sourceState of
@@ -79,21 +79,27 @@ data LexerState = LexerState
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
+parser :: LexerState -> Maybe (LexerVal, LexerState)
+parser state =
+  parseDouble state
+  ?: parseSingle state
+  ?: parseString state
+  ?: parseNumber state
+  ?: parseIdent state
+
 parseIdent :: LexerState -> Maybe (LexerVal, LexerState)
-parseIdent lexerState =
-  parseNumber lexerState
-    ?: do
-      (firstChar, _restSource) <- getC (source lexerState)
-      if isAlpha firstChar || firstChar == '_'
-        then
-          let
-            originalPos = currentPos lexerState
-            (identStr, rest) = munchIdent (source lexerState)
-            len = length identStr
-           in do
-            tok <- getIdent identStr
-            return (makeVal tok originalPos len, posAddCol len (lexerState {source = rest }))
-        else Nothing
+parseIdent lexerState = do
+  (firstChar, _restSource) <- getC (source lexerState)
+  if isAlpha firstChar || firstChar == '_'
+    then
+      let
+        originalPos = currentPos lexerState
+        (identStr, rest) = munchIdent (source lexerState)
+        len = length identStr
+       in do
+        tok <- getIdent identStr
+        return (makeVal tok originalPos len, posAddCol len (lexerState {source = rest }))
+    else Nothing
   where
     munchIdent :: String -> (String, String)
     munchIdent [] = ("", "")
@@ -123,13 +129,11 @@ parseIdent lexerState =
         hasAlpha (c:cs) = isAlpha c || hasAlpha cs
 
 parseNumber :: LexerState -> Maybe (LexerVal, LexerState)
-parseNumber lexerState =
-  parseString lexerState
-    ?: do
-      (firstChar, _restSource) <- getC (source lexerState)
-      if isDigit firstChar
-        then munchNumber (currentPos lexerState) lexerState
-        else Nothing
+parseNumber lexerState = do
+  (firstChar, _restSource) <- getC (source lexerState)
+  if isDigit firstChar
+    then munchNumber (currentPos lexerState) lexerState
+    else Nothing
   where
     munchNumber :: Position -> LexerState -> Maybe (LexerVal, LexerState)
     munchNumber originalPos numState =
@@ -153,13 +157,11 @@ parseNumber lexerState =
       | otherwise = ("", c : rest)
 
 parseString :: LexerState -> Maybe (LexerVal, LexerState)
-parseString lexerState =
-  parseSingle lexerState
-    ?: do
-      (firstChar, restSource) <- getC (source lexerState)
-      if firstChar == '"'
-        then munchString (currentPos lexerState) (lexerState { source = restSource })
-        else Nothing
+parseString lexerState = do
+  (firstChar, restSource) <- getC (source lexerState)
+  if firstChar == '"'
+    then munchString (currentPos lexerState) (lexerState { source = restSource })
+    else Nothing
   where
     munchString :: Position -> LexerState -> Maybe (LexerVal, LexerState)
     munchString originalPos strState = do
@@ -179,29 +181,28 @@ parseString lexerState =
     calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
 
 parseSingle :: LexerState -> Maybe (LexerVal, LexerState)
-parseSingle sourceState =
-  parseDouble sourceState ?: do
-    (c, rest) <- getC (source sourceState)
-    tok <- matchTok c
-    return (makeVal tok (currentPos sourceState) 1, posAddCol 1 (sourceState { source = rest}))
-    where
-      matchTok :: Char -> Maybe Token
-      matchTok '(' = Just TokLeftParen
-      matchTok ')' = Just TokRightParen
-      matchTok '{' = Just TokLeftBrace
-      matchTok '}' = Just TokRightBrace
-      matchTok ',' = Just TokComma
-      matchTok '.' = Just TokDot
-      matchTok '-' = Just TokMinus
-      matchTok '+' = Just TokPlus
-      matchTok ';' = Just TokSemicolon
-      matchTok '*' = Just TokStar
-      matchTok '!' = Just TokBang
-      matchTok '=' = Just TokEqual
-      matchTok '>' = Just TokGreater
-      matchTok '<' = Just TokLess
-      matchTok '/' = Just TokSlash
-      matchTok _ = Nothing
+parseSingle sourceState = do
+  (c, rest) <- getC (source sourceState)
+  tok <- matchTok c
+  return (makeVal tok (currentPos sourceState) 1, posAddCol 1 (sourceState { source = rest}))
+  where
+    matchTok :: Char -> Maybe Token
+    matchTok '(' = Just TokLeftParen
+    matchTok ')' = Just TokRightParen
+    matchTok '{' = Just TokLeftBrace
+    matchTok '}' = Just TokRightBrace
+    matchTok ',' = Just TokComma
+    matchTok '.' = Just TokDot
+    matchTok '-' = Just TokMinus
+    matchTok '+' = Just TokPlus
+    matchTok ';' = Just TokSemicolon
+    matchTok '*' = Just TokStar
+    matchTok '!' = Just TokBang
+    matchTok '=' = Just TokEqual
+    matchTok '>' = Just TokGreater
+    matchTok '<' = Just TokLess
+    matchTok '/' = Just TokSlash
+    matchTok _ = Nothing
 
 parseDouble :: LexerState -> Maybe (LexerVal, LexerState)
 parseDouble lexerState = do
