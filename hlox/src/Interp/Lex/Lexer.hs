@@ -213,23 +213,23 @@ parseSingle sourceState = do
 parseDouble :: LexerState -> Maybe (LexerVal, LexerState)
 parseDouble lexerState = do
     (fstChar, restStr) <- getC (source lexerState)
-    (secChar, restStr') <- matchTok fstChar restStr
-    tok <- go secChar
+    (secChar, restStr') <- matchDouble fstChar restStr
+    tok <- matchTok secChar
     let originalPos = currentPos lexerState
     return $ makeValWithState originalPos (tok, 2) restStr'
   where
-    matchTok :: Char -> String -> Maybe (String, String)
-    matchTok c restStr
+    matchDouble :: Char -> String -> Maybe (String, String)
+    matchDouble c restStr
       | c `elem` "!=><" = case restStr of
         ('=':restStr') -> Just (c:['='], restStr')
         _ -> Nothing
       | otherwise = Nothing
-    go :: String -> Maybe Token
-    go "!=" = Just TokBangEqual
-    go "==" = Just TokEqualEqual
-    go ">=" = Just TokGreaterEqual
-    go "<=" = Just TokLessEqual
-    go _ = Nothing
+    matchTok :: String -> Maybe Token
+    matchTok "!=" = Just TokBangEqual
+    matchTok "==" = Just TokEqualEqual
+    matchTok ">=" = Just TokGreaterEqual
+    matchTok "<=" = Just TokLessEqual
+    matchTok _ = Nothing
 
 skip :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
 skip lexer = lexer . skipComment . skipWhiteSpace
