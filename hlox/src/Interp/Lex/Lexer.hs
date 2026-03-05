@@ -51,6 +51,13 @@ makeVal tok pos len =
       tokenStart = pos,
       tokenEnd = posAddCol (len - 1) pos
     }
+makeVal' :: Position -> (Token, Int) -> LexerVal
+makeVal' pos (tok, len) = makeVal tok pos len
+
+-- | Effectively make new LexerVal with LexerState
+makeValWithState :: Position -> (Token, Int) -> String -> (LexerVal, LexerState)
+makeValWithState basePos (tok, len) restStr =
+  (makeVal' basePos (tok, len), LexerState restStr (posAddCol len basePos))
 
 data TokenWithPosition = TokenWithPosition
   { token :: Token,
