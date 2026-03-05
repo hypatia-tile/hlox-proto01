@@ -44,20 +44,19 @@ lexer source =
 newLexerVal :: Token -> Position -> Position -> LexerVal
 newLexerVal = TokenWithPosition
 
-makeVal :: Token -> Position -> Int -> LexerVal
-makeVal tok pos len =
-  TokenWithPosition
-    { token = tok,
-      tokenStart = pos,
-      tokenEnd = posAddCol (len - 1) pos
-    }
-makeVal' :: Position -> (Token, Int) -> LexerVal
-makeVal' pos (tok, len) = makeVal tok pos len
 
 -- | Effectively make new LexerVal with LexerState
 makeValWithState :: Position -> (Token, Int) -> String -> (LexerVal, LexerState)
 makeValWithState basePos (tok, len) restStr =
   (makeVal' basePos (tok, len), LexerState restStr (posAddCol len basePos))
+  where
+    makeVal' :: Position -> (Token, Int) -> LexerVal
+    makeVal' pos (tok, len) =
+      TokenWithPosition
+        { token = tok,
+          tokenStart = pos,
+          tokenEnd = posAddCol (len - 1) pos
+        }
 
 data TokenWithPosition = TokenWithPosition
   { token :: Token,
@@ -105,7 +104,7 @@ parseIdent lexerState = do
         len = length identStr
        in do
         tok <- getIdent identStr
-        return (makeVal tok originalPos len, posAddCol len (lexerState {source = rest }))
+        return $ makeValWithState originalPos (tok, len) rest
     else Nothing
   where
     munchIdent :: String -> (String, String)
@@ -148,7 +147,7 @@ parseNumber lexerState = do
           len = length numPart
        in if null numPart
             then Nothing
-            else Just $ (makeVal (TokNumber (read numPart)) originalPos len, posAddCol (len) (numState {source = restSrc}))
+            else Just $ makeValWithState originalPos (TokNumber (read numPart), len) restSrc
     sepWhileNumDot :: String -> (String, String)
     sepWhileNumDot [] = ("", "")
     sepWhileNumDot (c : rest)
@@ -191,7 +190,7 @@ parseSingle :: LexerState -> Maybe (LexerVal, LexerState)
 parseSingle sourceState = do
   (c, rest) <- getC (source sourceState)
   tok <- matchTok c
-  return (makeVal tok (currentPos sourceState) 1, posAddCol 1 (sourceState { source = rest}))
+  return $ makeValWithState (currentPos sourceState) (tok, 1) rest
   where
     matchTok :: Char -> Maybe Token
     matchTok '(' = Just TokLeftParen
@@ -217,7 +216,7 @@ parseDouble lexerState = do
     (secChar, restStr') <- matchTok fstChar restStr
     tok <- go secChar
     let originalPos = currentPos lexerState
-    return (makeVal tok originalPos 2, posAddCol 2 (lexerState {source = restStr'}))
+    return $ makeValWithState originalPos (tok, 2) restStr'
   where
     matchTok :: Char -> String -> Maybe (String, String)
     matchTok c restStr
