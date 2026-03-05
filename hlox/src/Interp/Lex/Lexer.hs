@@ -136,7 +136,7 @@ parseIdent = StateT $ \lexerState -> do
       where
         hasAlpha :: String -> Bool
         hasAlpha [] = False
-        hasAlpha (c : cs) = isAlpha c || hasAlpha cs
+        hasAlpha (c : cs) = C.isAlpha c || hasAlpha cs
 
 parseNumber :: Lexer LexerVal
 parseNumber = StateT $ \lexerState -> do
