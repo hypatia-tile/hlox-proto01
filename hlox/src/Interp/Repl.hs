@@ -3,6 +3,8 @@ module Interp.Repl where
 import Control.Exception (IOException, catch)
 import System.IO (IOMode (ReadMode), hFlush, hGetContents, stdout, withFile)
 import System.IO.Error (isEOFError)
+import Interp.Lex.Lexer (lexer)
+import Control.Monad (mapM_)
 
 repl :: IO ()
 repl = do
@@ -10,9 +12,10 @@ repl = do
   hFlush stdout
   result <- getLineSafe
   case result of
-    Nothing -> putStrLn "\nBye!"
+    Nothing -> do
+      putStrLn "\nBye!"
     Just line -> do
-      putStrLn $ line
+      mapM_ print (lexer line)
       repl
   where
     getLineSafe :: IO (Maybe String)
