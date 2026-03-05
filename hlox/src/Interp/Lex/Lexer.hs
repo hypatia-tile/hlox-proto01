@@ -12,6 +12,8 @@ infixl 9 ?:
 Nothing ?: fallback = fallback
 (Just x) ?: _ = Just x
 
+type Lexer = LexerState -> Maybe (LexerVal, LexerState)
+
 class HasPosition a where
   posLine :: a -> Int
   posCol :: a -> Int
@@ -36,7 +38,7 @@ lexer :: String -> [LexerVal]
 lexer source =
   lexerHelper (skip parser) (newLexerState source)
   where
-    lexerHelper :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> [LexerVal]
+    lexerHelper :: Lexer -> LexerState -> [LexerVal]
     lexerHelper lexer sourceState = case lexer sourceState of
       Nothing -> []
       Just (token, newState) -> token : lexerHelper lexer newState
@@ -85,7 +87,7 @@ data LexerState = LexerState
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
-parser :: LexerState -> Maybe (LexerVal, LexerState)
+parser :: Lexer
 parser state =
   parseDouble state
     ?: parseSingle state
@@ -93,7 +95,7 @@ parser state =
     ?: parseNumber state
     ?: parseIdent state
 
-parseIdent :: LexerState -> Maybe (LexerVal, LexerState)
+parseIdent :: Lexer
 parseIdent lexerState = do
   (firstChar, _restSource) <- getC (source lexerState)
   if isAlpha firstChar || firstChar == '_'
@@ -133,14 +135,14 @@ parseIdent lexerState = do
         hasAlpha [] = False
         hasAlpha (c : cs) = isAlpha c || hasAlpha cs
 
-parseNumber :: LexerState -> Maybe (LexerVal, LexerState)
+parseNumber :: Lexer
 parseNumber lexerState = do
   (firstChar, _restSource) <- getC (source lexerState)
   if isDigit firstChar
     then munchNumber (currentPos lexerState) lexerState
     else Nothing
   where
-    munchNumber :: Position -> LexerState -> Maybe (LexerVal, LexerState)
+    munchNumber :: Position -> Lexer
     munchNumber originalPos numState =
       let (numPart, restSrc) = sepWhileNumDot (source numState)
           len = length numPart
@@ -161,14 +163,14 @@ parseNumber lexerState = do
       | isDigit c = let (c', rest') = sepWhileNum rest in (c : c', rest')
       | otherwise = ("", c : rest)
 
-parseString :: LexerState -> Maybe (LexerVal, LexerState)
+parseString :: Lexer
 parseString lexerState = do
   (firstChar, restSource) <- getC (source lexerState)
   if firstChar == '"'
     then munchString (currentPos lexerState) (lexerState {source = restSource})
     else Nothing
   where
-    munchString :: Position -> LexerState -> Maybe (LexerVal, LexerState)
+    munchString :: Position -> Lexer
     munchString originalPos strState = do
       (strPart, restSrc) <- sepWithStr (source strState)
       let newPos = calcPos strPart (posAddCol 1 originalPos)
@@ -185,7 +187,7 @@ parseString lexerState = do
     calcPos ('\n' : rest) pos = calcPos rest (posNewLine pos)
     calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
 
-parseSingle :: LexerState -> Maybe (LexerVal, LexerState)
+parseSingle :: Lexer
 parseSingle sourceState = do
   (c, rest) <- getC (source sourceState)
   tok <- matchTok c
@@ -209,7 +211,7 @@ parseSingle sourceState = do
     matchTok '/' = Just TokSlash
     matchTok _ = Nothing
 
-parseDouble :: LexerState -> Maybe (LexerVal, LexerState)
+parseDouble :: Lexer
 parseDouble lexerState = do
   (fstChar, restStr) <- getC (source lexerState)
   (secChar, restStr') <- matchDouble fstChar restStr
@@ -230,7 +232,7 @@ parseDouble lexerState = do
     matchTok "<=" = Just TokLessEqual
     matchTok _ = Nothing
 
-skip :: (LexerState -> Maybe (LexerVal, LexerState)) -> LexerState -> Maybe (LexerVal, LexerState)
+skip :: Lexer -> Lexer
 skip lexer = lexer . skipComment . skipWhiteSpace
 
 skipWhiteSpace :: LexerState -> LexerState
