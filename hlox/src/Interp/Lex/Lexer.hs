@@ -8,11 +8,13 @@ import Interp.Data.Token
 
 infixl 9 ?:
 
-(?:) :: Maybe a -> Maybe a -> Maybe a
-Nothing ?: fallback = fallback
-(Just x) ?: _ = Just x
+(?:) :: Lexer a -> Lexer a -> Lexer a
+StateT lexer ?: StateT fallback = StateT $ \state ->
+  case lexer state of
+    Nothing -> fallback state
+    x -> x
 
-type Lexer a= LexerState -> Maybe (a, LexerState)
+type Lexer a= StateT LexerState Maybe a
 
 class HasPosition a where
   posLine :: a -> Int
@@ -39,7 +41,7 @@ lexer source =
   lexerHelper (skip parser) (newLexerState source)
   where
     lexerHelper :: Lexer LexerVal -> LexerState -> [LexerVal]
-    lexerHelper lexer sourceState = case lexer sourceState of
+    lexerHelper lexer sourceState = case runStateT lexer sourceState of
       Nothing -> []
       Just (token, newState) -> token : lexerHelper lexer newState
 
@@ -88,15 +90,15 @@ newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
 
 parser :: Lexer LexerVal
-parser state =
-  parseDouble state
-    ?: parseSingle state
-    ?: parseString state
-    ?: parseNumber state
-    ?: parseIdent state
+parser =
+  parseDouble
+    ?: parseSingle
+    ?: parseString
+    ?: parseNumber
+    ?: parseIdent
 
 parseIdent :: Lexer LexerVal
-parseIdent lexerState = do
+parseIdent = StateT $ \lexerState -> do
   (firstChar, _restSource) <- getC (source lexerState)
   if isAlpha firstChar || firstChar == '_'
     then
@@ -125,25 +127,26 @@ parseIdent lexerState = do
     isAlpha c = C.isAlpha c || c == '_'
     isAlphaNum c = C.isAlphaNum c || c == '_'
     getIdent :: String -> Maybe Token
-    getIdent src =
-      reservedTokens src
-        ?: if hasAlpha src
-          then Just $ TokIdentifier src
-          else Nothing
+    getIdent src = case reservedTokens src of
+      Nothing ->
+         if hasAlpha src
+        then Just $ TokIdentifier src
+        else Nothing
+      x -> x
       where
         hasAlpha :: String -> Bool
         hasAlpha [] = False
         hasAlpha (c : cs) = isAlpha c || hasAlpha cs
 
 parseNumber :: Lexer LexerVal
-parseNumber lexerState = do
+parseNumber = StateT $ \lexerState -> do
   (firstChar, _restSource) <- getC (source lexerState)
   if isDigit firstChar
-    then munchNumber (currentPos lexerState) lexerState
+    then runStateT (munchNumber (currentPos lexerState)) lexerState
     else Nothing
   where
     munchNumber :: Position -> Lexer LexerVal
-    munchNumber originalPos numState =
+    munchNumber originalPos = StateT $ \numState ->
       let (numPart, restSrc) = sepWhileNumDot (source numState)
           len = length numPart
        in if null numPart
@@ -164,14 +167,14 @@ parseNumber lexerState = do
       | otherwise = ("", c : rest)
 
 parseString :: Lexer LexerVal
-parseString lexerState = do
+parseString = StateT $ \lexerState -> do
   (firstChar, restSource) <- getC (source lexerState)
   if firstChar == '"'
-    then munchString (currentPos lexerState) (lexerState {source = restSource})
+    then runStateT (munchString (currentPos lexerState)) (lexerState {source = restSource})
     else Nothing
   where
     munchString :: Position -> Lexer LexerVal
-    munchString originalPos strState = do
+    munchString originalPos = StateT $ \strState -> do
       (strPart, restSrc) <- sepWithStr (source strState)
       let newPos = calcPos strPart (posAddCol 1 originalPos)
       return (newLexerVal (TokString strPart) originalPos newPos, (strState {source = restSrc, currentPos = posAddCol 1 newPos}))
@@ -188,7 +191,7 @@ parseString lexerState = do
     calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
 
 parseSingle :: Lexer LexerVal
-parseSingle sourceState = do
+parseSingle = StateT $ \sourceState -> do
   (c, rest) <- getC (source sourceState)
   tok <- matchTok c
   return $ makeValWithState (currentPos sourceState) (tok, 1) rest
@@ -212,7 +215,7 @@ parseSingle sourceState = do
     matchTok _ = Nothing
 
 parseDouble :: Lexer LexerVal
-parseDouble lexerState = do
+parseDouble  =  StateT $ \lexerState -> do
   (fstChar, restStr) <- getC (source lexerState)
   (secChar, restStr') <- matchDouble fstChar restStr
   tok <- matchTok secChar
@@ -233,12 +236,15 @@ parseDouble lexerState = do
     matchTok _ = Nothing
 
 skip :: Lexer LexerVal -> Lexer LexerVal
-skip lexer = lexer . skipComment . skipWhiteSpace
+skip lexer = do
+  modify skipWhiteSpace
+  modify skipComment
+  lexer
 
 skipWhiteSpace :: LexerState -> LexerState
 skipWhiteSpace lexerState = case getC (source lexerState) of
   Nothing -> lexerState
-  Just ('\n', rest) -> skipWhiteSpace (lexerState {source = rest})
+  Just ('\n', rest) -> skipWhiteSpace . posNewLine $ (lexerState {source = rest})
   Just (c, rest) ->
     if isSpace c
       then skipWhiteSpace (posAddCol 1 (lexerState {source = rest}))
