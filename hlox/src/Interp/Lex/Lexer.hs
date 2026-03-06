@@ -215,25 +215,25 @@ parseSingle = StateT $ \sourceState -> do
     matchTok _ = Nothing
 
 parseDouble :: Lexer LexerVal
-parseDouble  =  StateT $ \lexerState -> do
-  (fstChar, restStr) <- getC (source lexerState)
-  (secChar, restStr') <- matchDouble fstChar restStr
-  tok <- matchTok secChar
+parseDouble = StateT $ \lexerState -> do
+  (fstChar, restState) <- runStateT advance lexerState
+  (secChar, restState') <- runStateT advance restState
+  tok <- withEqual fstChar
   let originalPos = currentPos lexerState
-  return $ makeValWithState originalPos (tok, 2) restStr'
+  if secChar == '='
+    then
+      return $
+        ( TokenWithPosition tok originalPos (posAddCol 1 originalPos),
+          restState'
+        )
+    else Nothing
   where
-    matchDouble :: Char -> String -> Maybe (String, String)
-    matchDouble c restStr
-      | c `elem` "!=><" = case restStr of
-          ('=' : restStr') -> Just (c : ['='], restStr')
-          _ -> Nothing
-      | otherwise = Nothing
-    matchTok :: String -> Maybe Token
-    matchTok "!=" = Just TokBangEqual
-    matchTok "==" = Just TokEqualEqual
-    matchTok ">=" = Just TokGreaterEqual
-    matchTok "<=" = Just TokLessEqual
-    matchTok _ = Nothing
+    withEqual :: Char -> Maybe Token
+    withEqual '!' = Just TokBangEqual
+    withEqual '=' = Just TokEqualEqual
+    withEqual '>' = Just TokGreaterEqual
+    withEqual '<' = Just TokLessEqual
+    withEqual _ = Nothing
 
 skip :: Lexer LexerVal -> Lexer LexerVal
 skip lexer = do
@@ -267,6 +267,11 @@ skipComment lexerState = case commentLine lexerState of
     discardUntilNewline (x : xs)
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
+
+advance :: Lexer Char
+advance = StateT $ \lexerState -> do
+  (c, rest) <- getC . source $ lexerState
+  return (c, posAddCol 1 (lexerState { source = rest }))
 
 getC :: String -> Maybe (Char, String)
 getC state =
