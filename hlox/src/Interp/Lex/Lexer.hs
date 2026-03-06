@@ -168,27 +168,26 @@ parseNumber = StateT $ \lexerState -> do
 
 parseString :: Lexer LexerVal
 parseString = StateT $ \lexerState -> do
-  (firstChar, restSource) <- getC (source lexerState)
+  (firstChar, restSource) <- runStateT advance lexerState
   if firstChar == '"'
-    then runStateT (munchString (currentPos lexerState)) (lexerState {source = restSource})
+    then runStateT (munchString (currentPos lexerState)) restSource
     else Nothing
   where
     munchString :: Position -> Lexer LexerVal
     munchString originalPos = StateT $ \strState -> do
-      (strPart, restSrc) <- sepWithStr (source strState)
-      let newPos = calcPos strPart (posAddCol 1 originalPos)
-      return (newLexerVal (TokString strPart) originalPos newPos, (strState {source = restSrc, currentPos = posAddCol 1 newPos}))
-    sepWithStr :: String -> Maybe (String, String)
-    sepWithStr str = case str of
-      [] -> Nothing
-      '"' : rest -> Just ([], rest)
-      c : rest -> do
-        (s, r) <- sepWithStr rest
-        return (c : s, r)
-    calcPos :: String -> Position -> Position
-    calcPos [] pos = pos
-    calcPos ('\n' : rest) pos = calcPos rest (posNewLine pos)
-    calcPos (_ : rest) pos = calcPos rest (posAddCol 1 pos)
+      (strPart, restSrc) <- runStateT sepWithStr strState
+      return (newLexerVal (TokString (fst strPart)) originalPos (snd strPart), restSrc)
+    sepWithStr :: Lexer (String, Position)
+    sepWithStr = StateT sepWithStr'
+      where
+        sepWithStr' :: LexerState -> Maybe ((String, Position), LexerState)
+        sepWithStr' state = do
+          (c, newState) <- runStateT advance state
+          if c == '"'
+            then return (("", currentPos state), newState)
+            else do
+              ((c', pos), r) <- sepWithStr' newState
+              return ((c:c', pos), r)
 
 parseSingle :: Lexer LexerVal
 parseSingle = StateT $ \sourceState -> do
