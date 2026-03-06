@@ -268,6 +268,13 @@ skipComment lexerState = case commentLine lexerState of
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
 
+matchC :: Char -> Lexer Char
+matchC c = do
+  c' <- advance
+  if c == c'
+    then return c'
+    else fail "does not match character"
+
 advance :: Lexer Char
 advance = StateT $ \lexerState -> do
   (c, rest) <- getC . source $ lexerState
