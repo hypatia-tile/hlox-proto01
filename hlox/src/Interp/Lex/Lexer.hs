@@ -215,18 +215,25 @@ parseSingle = StateT $ \sourceState -> do
     matchTok _ = Nothing
 
 parseDouble :: Lexer LexerVal
-parseDouble = StateT $ \lexerState -> do
-  (fstChar, restState) <- runStateT advance lexerState
-  (secChar, restState') <- runStateT advance restState
-  tok <- withEqual fstChar
-  let originalPos = currentPos lexerState
-  if secChar == '='
-    then
-      return $
-        ( TokenWithPosition tok originalPos (posAddCol 1 originalPos),
-          restState'
-        )
-    else Nothing
+parseDouble = do
+  prepos <- currentPos <$> get
+  c <- advance
+  pos <- matchC '='
+  case withEqual c of
+    Just tok -> return $ TokenWithPosition tok prepos pos
+    Nothing -> fail "first character does not match double"
+-- parseDouble = StateT $ \lexerState -> do
+--   (fstChar, restState) <- runStateT advance lexerState
+--   (secChar, restState') <- runStateT advance restState
+--   tok <- withEqual fstChar
+--   let originalPos = currentPos lexerState
+--   if secChar == '='
+--     then
+--       return $
+--         ( TokenWithPosition tok originalPos (posAddCol 1 originalPos),
+--           restState'
+--         )
+--     else Nothing
   where
     withEqual :: Char -> Maybe Token
     withEqual '!' = Just TokBangEqual
@@ -268,11 +275,12 @@ skipComment lexerState = case commentLine lexerState of
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
 
-matchC :: Char -> Lexer Char
+matchC :: Char -> Lexer Position
 matchC c = do
+  state <- get
   c' <- advance
   if c == c'
-    then return c'
+    then return $ currentPos state
     else fail "does not match character"
 
 advance :: Lexer Char
