@@ -192,9 +192,10 @@ parseString = StateT $ \lexerState -> do
 
 parseSingle :: Lexer LexerVal
 parseSingle = StateT $ \sourceState -> do
-  (c, rest) <- getC (source sourceState)
+  (c, rest) <- runStateT advance sourceState
   tok <- matchTok c
-  return $ makeValWithState (currentPos sourceState) (tok, 1) rest
+  let originPos = currentPos sourceState
+  return (TokenWithPosition tok originPos $ posAddCol 1 originPos, rest)
   where
     matchTok :: Char -> Maybe Token
     matchTok '(' = Just TokLeftParen
