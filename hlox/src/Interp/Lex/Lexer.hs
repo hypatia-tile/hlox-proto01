@@ -168,9 +168,9 @@ parseNumber = StateT $ \lexerState -> do
 
 parseString :: Lexer LexerVal
 parseString = StateT $ \lexerState -> do
-  (firstChar, restSource) <- runStateT advance lexerState
+  ((firstChar, lastPos), restSource) <- runStateT advance lexerState
   if firstChar == '"'
-    then runStateT (munchString (currentPos lexerState)) restSource
+    then runStateT (munchString lastPos) restSource
     else Nothing
   where
     munchString :: Position -> Lexer LexerVal
@@ -182,17 +182,16 @@ parseString = StateT $ \lexerState -> do
       where
         sepWithStr' :: LexerState -> Maybe ((String, Position), LexerState)
         sepWithStr' state = do
-          (c, newState) <- runStateT advance state
+          ((c, pos), newState) <- runStateT advance state
           if c == '"'
-            then return (("", currentPos state), newState)
+            then return (("", pos), newState)
             else do
               ((c', pos), r) <- sepWithStr' newState
               return ((c:c', pos), r)
 
 parseSingle :: Lexer LexerVal
 parseSingle = do
-  pos <- currentPos <$> get
-  c <- advance
+  (c, pos) <- advance
   case matchTok c of
     Just tok -> return $ TokenWithPosition tok pos pos
     Nothing -> fail "No single character token matches"
@@ -218,7 +217,7 @@ parseSingle = do
 parseDouble :: Lexer LexerVal
 parseDouble = do
   prepos <- currentPos <$> get
-  c <- advance
+  (c, _) <- advance
   pos <- matchC '='
   case withEqual c of
     Just tok -> return $ TokenWithPosition tok prepos pos
@@ -267,15 +266,16 @@ skipComment lexerState = case commentLine lexerState of
 matchC :: Char -> Lexer Position
 matchC c = do
   state <- get
-  c' <- advance
+  (c', pos) <- advance
   if c == c'
-    then return $ currentPos state
+    then return pos
     else fail "does not match character"
 
-advance :: Lexer Char
+advance :: Lexer (Char, Position)
 advance = StateT $ \lexerState -> do
   (c, rest) <- getC . source $ lexerState
-  return (c, posAddCol 1 (lexerState { source = rest }))
+  let newPos = if c == '\n' then posNewLine else posAddCol 1
+  return ((c, currentPos lexerState), newPos (lexerState { source = rest }))
 
 getC :: String -> Maybe (Char, String)
 getC state =
