@@ -167,27 +167,22 @@ parseNumber = StateT $ \lexerState -> do
       | otherwise = ("", c : rest)
 
 parseString :: Lexer LexerVal
-parseString = StateT $ \lexerState -> do
-  ((firstChar, lastPos), restSource) <- runStateT advance lexerState
+parseString = do
+  (firstChar, pos) <- advance
   if firstChar == '"'
-    then runStateT (munchString lastPos) restSource
-    else Nothing
+    then do
+      (tokStr, lastPos) <- munchString
+      return $ TokenWithPosition (TokString tokStr) pos lastPos
+    else fail "Not match a string"
   where
-    munchString :: Position -> Lexer LexerVal
-    munchString originalPos = StateT $ \strState -> do
-      (strPart, restSrc) <- runStateT sepWithStr strState
-      return (newLexerVal (TokString (fst strPart)) originalPos (snd strPart), restSrc)
-    sepWithStr :: Lexer (String, Position)
-    sepWithStr = StateT sepWithStr'
-      where
-        sepWithStr' :: LexerState -> Maybe ((String, Position), LexerState)
-        sepWithStr' state = do
-          ((c, pos), newState) <- runStateT advance state
-          if c == '"'
-            then return (("", pos), newState)
-            else do
-              ((c', pos), r) <- sepWithStr' newState
-              return ((c:c', pos), r)
+    munchString :: Lexer (String, Position)
+    munchString = do
+      (c, po) <- advance
+      if c == '"'
+        then return ("", po)
+        else do
+          (s, po') <- munchString
+          return (c:s, po')
 
 parseSingle :: Lexer LexerVal
 parseSingle = do
