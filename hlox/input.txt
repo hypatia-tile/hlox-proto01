@@ -1,6 +1,7 @@
 Hello>=
  **World
 //world
+  //world
 world 1 + 2
 world "1 +" 2
 print "Hello, World!"

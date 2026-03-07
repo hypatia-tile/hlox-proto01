@@ -31,7 +31,7 @@ type LexerVal = TokenWithRange
 
 lexer :: String -> [LexerVal]
 lexer source =
-  lexerHelper (skip parser) (newLexerState source)
+  lexerHelper (skipTrivia *> parser) (newLexerState source)
   where
     lexerHelper :: Lexer LexerVal -> LexerState -> [LexerVal]
     lexerHelper lexer sourceState = case runStateT lexer sourceState of
@@ -55,6 +55,7 @@ data Position = Position
   { line :: Int,
     column :: Int
   }
+  deriving (Eq)
 
 instance Show Position where
   show (Position line col) =
@@ -64,7 +65,7 @@ data LexerState = LexerState
   { source :: String,
     currentPos :: Position
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 newLexerState :: String -> LexerState
 newLexerState src = LexerState src (Position 0 0)
@@ -178,11 +179,13 @@ parseDouble = do
     withEqual '<' = Just TokLessEqual
     withEqual _ = Nothing
 
-skip :: Lexer LexerVal -> Lexer LexerVal
-skip lexer = do
+skipTrivia :: Lexer ()
+skipTrivia = do
+  st0 <- get
   modify skipWhiteSpace
   modify skipComment
-  lexer
+  st1 <- get
+  when (st0 /= st1) skipTrivia
 
 skipWhiteSpace :: LexerState -> LexerState
 skipWhiteSpace lexerState = case getC (source lexerState) of
