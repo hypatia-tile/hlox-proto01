@@ -139,32 +139,41 @@ parseIdent = StateT $ \lexerState -> do
         hasAlpha (c : cs) = C.isAlpha c || hasAlpha cs
 
 parseNumber :: Lexer LexerVal
-parseNumber = StateT $ \lexerState -> do
-  (firstChar, _restSource) <- getC (source lexerState)
-  if isDigit firstChar
-    then runStateT (munchNumber (currentPos lexerState)) lexerState
-    else Nothing
+parseNumber = do
+  originPos <- currentPos <$> get
+  (firstChar, _) <- matchC' isDigit
+  (rest, posision) <- munchNumDot
+  return $ TokenWithPosition (TokNumber . read $ firstChar:rest) originPos posision
   where
-    munchNumber :: Position -> Lexer LexerVal
-    munchNumber originalPos = StateT $ \numState ->
-      let (numPart, restSrc) = sepWhileNumDot (source numState)
-          len = length numPart
-       in if null numPart
-            then Nothing
-            else Just $ makeValWithState originalPos (TokNumber (read numPart), len) restSrc
-    sepWhileNumDot :: String -> (String, String)
-    sepWhileNumDot [] = ("", "")
-    sepWhileNumDot (c : rest)
-      | isDigit c = let (c', rest') = sepWhileNumDot rest in (c : c', rest')
-      | c == '.' = case sepWhileNum rest of
-          ("", _) -> ("", c : rest)
-          (c', rest') -> (c : c', rest')
-      | otherwise = ("", c : rest)
-    sepWhileNum :: String -> (String, String)
-    sepWhileNum [] = ("", "")
-    sepWhileNum (c : rest)
-      | isDigit c = let (c', rest') = sepWhileNum rest in (c : c', rest')
-      | otherwise = ("", c : rest)
+    munchNumDot :: Lexer (String, Position)
+    munchNumDot = do
+      state <- get
+      case peek state of
+        Nothing -> return ("", currentPos state)
+        Just ('.', pos) -> do
+          advance
+          (s, pos') <- munchNum
+          return ('.':s, pos')
+        Just (c, pos) ->
+           if isDigit c
+             then do
+               advance
+               (s, pos') <- munchNumDot
+               return (c:s, pos')
+             else return ("", pos)
+    munchNum :: Lexer (String, Position)
+    munchNum = do
+      state <- get
+      case peek state of
+        Nothing -> return ("", currentPos state)
+        Just (c, pos) -> do
+          if isDigit c
+            then do
+              advance
+              (s, pos') <- munchNum
+              return (c:s, pos')
+            else
+              return ("", pos)
 
 parseString :: Lexer LexerVal
 parseString = do
@@ -258,6 +267,14 @@ skipComment lexerState = case commentLine lexerState of
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
 
+matchC' :: (Char -> Bool) -> Lexer (Char, Position)
+matchC' prop = do
+  state <- get
+  (c', pos) <- advance
+  if prop c'
+    then return (c', pos)
+    else fail "does not suffice condition"
+
 matchC :: Char -> Lexer Position
 matchC c = do
   state <- get
@@ -271,6 +288,11 @@ advance = StateT $ \lexerState -> do
   (c, rest) <- getC . source $ lexerState
   let newPos = if c == '\n' then posNewLine else posAddCol 1
   return ((c, currentPos lexerState), newPos (lexerState { source = rest }))
+
+peek :: LexerState -> Maybe (Char, Position)
+peek lexerState = do
+  (c, rest) <- getC . source $ lexerState
+  return (c, currentPos lexerState)
 
 getC :: String -> Maybe (Char, String)
 getC state =
