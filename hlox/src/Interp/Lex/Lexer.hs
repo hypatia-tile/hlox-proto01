@@ -115,38 +115,26 @@ parseNumber :: Lexer LexerVal
 parseNumber = do
   originPos <- currentPos <$> get
   (firstChar, _) <- matchC' isDigit
-  (rest, posision) <- munchNumDot
-  return $ TokenWithRange (TokNumber . read $ firstChar:rest) originPos posision
+  (rest, lastPosition) <- munchNumDot
+  return $ TokenWithRange (TokNumber . read $ firstChar:rest) originPos lastPosition
   where
     munchNumDot :: Lexer (String, Position)
     munchNumDot = do
-      state <- get
-      case peek state of
-        Nothing -> return ("", currentPos state)
-        Just ('.', pos) -> do
-          advance
-          (s, pos') <- munchNum
-          return ('.':s, pos')
-        Just (c, pos) ->
-           if isDigit c
-             then do
-               advance
-               (s, pos') <- munchNumDot
-               return (c:s, pos')
-             else return ("", pos)
-    munchNum :: Lexer (String, Position)
-    munchNum = do
-      state <- get
-      case peek state of
-        Nothing -> return ("", currentPos state)
-        Just (c, pos) -> do
-          if isDigit c
+      pos <- currentPos <$> get
+      isNum <- peek isDigit
+      if isNum
+        then do
+          (c, _) <- advance
+          (s, pos') <- munchNumDot
+          return (c:s, pos')
+        else do
+          isDot <- peek ('.' ==)
+          if isDot
             then do
-              advance
-              (s, pos') <- munchNum
+              (c, _) <- advance
+              (s, pos') <- munch isDigit
               return (c:s, pos')
-            else
-              return ("", pos)
+            else return ("", pos)
 
 parseString :: Lexer LexerVal
 parseString = do
@@ -256,20 +244,30 @@ matchC c = do
     then return pos
     else fail "does not match character"
 
+munch :: (Char -> Bool) -> Lexer (String, Position)
+munch prop = do
+  pos <- currentPos <$> get
+  hasNext <- peek prop
+  if hasNext
+    then do
+      (c, pos') <- advance
+      (s, lastPos) <- munch prop
+      return (c:s, lastPos)
+    else return ("", pos)
+
+peek :: (Char -> Bool) -> Lexer Bool
+peek prop = StateT $ \state ->
+  case getC . source $ state of
+    Nothing -> return (False, state)
+    Just (c, _) -> return (prop c, state)
+
 advance :: Lexer (Char, Position)
 advance = StateT $ \lexerState -> do
   (c, rest) <- getC . source $ lexerState
   let newPos = if c == '\n' then posNewLine else posAddCol 1
   return ((c, currentPos lexerState), newPos (lexerState { source = rest }))
 
-peek :: LexerState -> Maybe (Char, Position)
-peek lexerState = do
-  (c, rest) <- getC . source $ lexerState
-  return (c, currentPos lexerState)
-
 getC :: String -> Maybe (Char, String)
-getC state =
-  let src = state
-   in case src of
-        [] -> Nothing
-        x : xs -> Just (x, xs)
+getC [] = Nothing
+getC (x:xs) = Just (x, xs)
+
