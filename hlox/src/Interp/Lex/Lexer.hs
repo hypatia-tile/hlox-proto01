@@ -98,45 +98,38 @@ parser =
     ?: parseIdent
 
 parseIdent :: Lexer LexerVal
-parseIdent = StateT $ \lexerState -> do
-  (firstChar, _restSource) <- getC (source lexerState)
-  if isAlpha firstChar || firstChar == '_'
-    then
-      let originalPos = currentPos lexerState
-          (identStr, rest) = munchIdent (source lexerState)
-          len = length identStr
-       in do
-            tok <- getIdent identStr
-            return $ makeValWithState originalPos (tok, len) rest
-    else Nothing
+parseIdent = do
+  originPos <- currentPos <$> get
+  (ident, lastPosition) <- munchIdent
+  let token = case reservedTokens ident of
+        Just tok -> tok
+        Nothing -> TokString ident
+  return $ TokenWithPosition token originPos lastPosition
   where
-    munchIdent :: String -> (String, String)
-    munchIdent [] = ("", "")
-    munchIdent (x : xs) =
-      if isAlpha x
-        then let (x', xs') = munchIdent' xs in (x : x', xs')
-        else ("", x : xs)
-      where
-        munchIdent' :: String -> (String, String)
-        munchIdent' [] = ("", "")
-        munchIdent' (x : xs) =
-          if isAlphaNum x
-            then let (x', xs') = munchIdent' xs in (x : x', xs')
-            else ("", x : xs)
+    munchIdent :: Lexer (String, Position)
+    munchIdent = do
+      (firstChar, restState) <- advance
+      if isAlpha firstChar
+        then do
+          (s, pos) <- munchAlpha firstChar
+          return (s, pos)
+        else fail "First character does not match to identifier"
+    munchAlpha :: Char -> Lexer (String, Position)
+    munchAlpha ch = do
+      state <- get
+      let base = ([ch], currentPos state)
+      if null . source $ state
+        then return base
+        else do
+          (c, pos) <- advance
+          if isAlphaNum c
+            then do
+              (c', pos') <- munchAlpha c
+              return (ch:c', pos')
+            else return base
     isAlpha :: Char -> Bool
     isAlpha c = C.isAlpha c || c == '_'
     isAlphaNum c = C.isAlphaNum c || c == '_'
-    getIdent :: String -> Maybe Token
-    getIdent src = case reservedTokens src of
-      Nothing ->
-         if hasAlpha src
-        then Just $ TokIdentifier src
-        else Nothing
-      x -> x
-      where
-        hasAlpha :: String -> Bool
-        hasAlpha [] = False
-        hasAlpha (c : cs) = C.isAlpha c || hasAlpha cs
 
 parseNumber :: Lexer LexerVal
 parseNumber = do
