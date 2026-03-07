@@ -1,4 +1,4 @@
-module Interp.Lex.Lexer (lexer, TokenWithPosition (..)) where
+module Interp.Lex.Lexer (lexer, TokenWithRange (..)) where
 
 import Control.Applicative ((<|>))
 import Control.Monad
@@ -27,7 +27,7 @@ instance HasPosition LexerState where
   posNewLine state = state {currentPos = posNewLine (currentPos state)}
   posAddCol len state = state {currentPos = posAddCol len (currentPos state)}
 
-type LexerVal = TokenWithPosition
+type LexerVal = TokenWithRange
 
 lexer :: String -> [LexerVal]
 lexer source =
@@ -39,16 +39,16 @@ lexer source =
       Just (token, newState) -> token : lexerHelper lexer newState
 
 newLexerVal :: Token -> Position -> Position -> LexerVal
-newLexerVal = TokenWithPosition
+newLexerVal = TokenWithRange
 
-data TokenWithPosition = TokenWithPosition
+data TokenWithRange = TokenWithRange
   { token :: Token,
     tokenStart :: Position,
     tokenEnd :: Position
   }
 
-instance Show TokenWithPosition where
-  show (TokenWithPosition token tokenStart tokenEnd) =
+instance Show TokenWithRange where
+  show (TokenWithRange token tokenStart tokenEnd) =
     show tokenStart <> "-" <> show tokenEnd <> ": " <> show token
 
 data Position = Position
@@ -84,7 +84,7 @@ parseIdent = do
   let token = case reservedTokens ident of
         Just tok -> tok
         Nothing -> TokString ident
-  return $ TokenWithPosition token originPos lastPosition
+  return $ TokenWithRange token originPos lastPosition
   where
     munchIdent :: Lexer (String, Position)
     munchIdent = do
@@ -116,7 +116,7 @@ parseNumber = do
   originPos <- currentPos <$> get
   (firstChar, _) <- matchC' isDigit
   (rest, posision) <- munchNumDot
-  return $ TokenWithPosition (TokNumber . read $ firstChar:rest) originPos posision
+  return $ TokenWithRange (TokNumber . read $ firstChar:rest) originPos posision
   where
     munchNumDot :: Lexer (String, Position)
     munchNumDot = do
@@ -154,7 +154,7 @@ parseString = do
   if firstChar == '"'
     then do
       (tokStr, lastPos) <- munchString
-      return $ TokenWithPosition (TokString tokStr) pos lastPos
+      return $ TokenWithRange (TokString tokStr) pos lastPos
     else fail "Not match a string"
   where
     munchString :: Lexer (String, Position)
@@ -170,7 +170,7 @@ parseSingle :: Lexer LexerVal
 parseSingle = do
   (c, pos) <- advance
   case matchTok c of
-    Just tok -> return $ TokenWithPosition tok pos pos
+    Just tok -> return $ TokenWithRange tok pos pos
     Nothing -> fail "No single character token matches"
   where
     matchTok :: Char -> Maybe Token
@@ -197,7 +197,7 @@ parseDouble = do
   (c, _) <- advance
   pos <- matchC '='
   case withEqual c of
-    Just tok -> return $ TokenWithPosition tok prepos pos
+    Just tok -> return $ TokenWithRange tok prepos pos
     Nothing -> fail "first character does not match double"
   where
     withEqual :: Char -> Maybe Token
