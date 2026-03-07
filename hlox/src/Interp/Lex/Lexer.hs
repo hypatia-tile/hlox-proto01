@@ -88,25 +88,9 @@ parseIdent = do
   where
     munchIdent :: Lexer (String, Position)
     munchIdent = do
-      (firstChar, restState) <- advance
-      if isAlpha firstChar
-        then do
-          (s, pos) <- munchAlpha firstChar
-          return (s, pos)
-        else fail "First character does not match to identifier"
-    munchAlpha :: Char -> Lexer (String, Position)
-    munchAlpha ch = do
-      state <- get
-      let base = ([ch], currentPos state)
-      if null . source $ state
-        then return base
-        else do
-          (c, pos) <- advance
-          if isAlphaNum c
-            then do
-              (c', pos') <- munchAlpha c
-              return (ch:c', pos')
-            else return base
+      (c, _) <- matchC isAlpha
+      (s, pos) <- munch isAlphaNum
+      return (c:s, pos)
     isAlpha :: Char -> Bool
     isAlpha c = C.isAlpha c || c == '_'
     isAlphaNum c = C.isAlphaNum c || c == '_'
