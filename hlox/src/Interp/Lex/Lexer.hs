@@ -114,7 +114,7 @@ parseIdent = do
 parseNumber :: Lexer LexerVal
 parseNumber = do
   originPos <- currentPos <$> get
-  (firstChar, _) <- matchC' isDigit
+  (firstChar, _) <- matchC isDigit
   (rest, lastPosition) <- munchNumDot
   return $ TokenWithRange (TokNumber . read $ firstChar:rest) originPos lastPosition
   where
@@ -183,7 +183,7 @@ parseDouble :: Lexer LexerVal
 parseDouble = do
   prepos <- currentPos <$> get
   (c, _) <- advance
-  pos <- matchC '='
+  (_, pos) <- matchC ('=' ==)
   case withEqual c of
     Just tok -> return $ TokenWithRange tok prepos pos
     Nothing -> fail "first character does not match double"
@@ -228,21 +228,13 @@ skipComment lexerState = case commentLine lexerState of
       | x == '\n' = xs
       | otherwise = discardUntilNewline xs
 
-matchC' :: (Char -> Bool) -> Lexer (Char, Position)
-matchC' prop = do
+matchC :: (Char -> Bool) -> Lexer (Char, Position)
+matchC prop = do
   state <- get
   (c', pos) <- advance
   if prop c'
     then return (c', pos)
     else fail "does not suffice condition"
-
-matchC :: Char -> Lexer Position
-matchC c = do
-  state <- get
-  (c', pos) <- advance
-  if c == c'
-    then return pos
-    else fail "does not match character"
 
 munch :: (Char -> Bool) -> Lexer (String, Position)
 munch prop = do
