@@ -1,18 +1,11 @@
 module Interp.Lex.Lexer (lexer, TokenWithPosition (..)) where
 
+import Control.Applicative ((<|>))
 import Control.Monad
 import Control.Monad.State.Lazy
 import Data.Char (isDigit, isSpace)
 import qualified Data.Char as C
 import Interp.Data.Token
-
-infixl 9 ?:
-
-(?:) :: Lexer a -> Lexer a -> Lexer a
-StateT lexer ?: StateT fallback = StateT $ \state ->
-  case lexer state of
-    Nothing -> fallback state
-    x -> x
 
 type Lexer a= StateT LexerState Maybe a
 
@@ -92,10 +85,10 @@ newLexerState src = LexerState src (Position 0 0)
 parser :: Lexer LexerVal
 parser =
   parseDouble
-    ?: parseSingle
-    ?: parseString
-    ?: parseNumber
-    ?: parseIdent
+    <|> parseSingle
+    <|> parseString
+    <|> parseNumber
+    <|> parseIdent
 
 parseIdent :: Lexer LexerVal
 parseIdent = do
