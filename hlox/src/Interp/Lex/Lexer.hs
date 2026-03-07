@@ -83,7 +83,7 @@ parseIdent = do
   (ident, lastPosition) <- munchIdent
   let token = case reservedTokens ident of
         Just tok -> tok
-        Nothing -> TokString ident
+        Nothing -> TokIdentifier ident
   return $ TokenWithRange token originPos lastPosition
   where
     munchIdent :: Lexer (String, Position)
