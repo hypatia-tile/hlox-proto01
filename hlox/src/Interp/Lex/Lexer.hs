@@ -41,19 +41,6 @@ lexer source =
 newLexerVal :: Token -> Position -> Position -> LexerVal
 newLexerVal = TokenWithPosition
 
--- | Effectively make new LexerVal with LexerState
-makeValWithState :: Position -> (Token, Int) -> String -> (LexerVal, LexerState)
-makeValWithState basePos (tok, len) restStr =
-  (makeVal' basePos (tok, len), LexerState restStr (posAddCol len basePos))
-  where
-    makeVal' :: Position -> (Token, Int) -> LexerVal
-    makeVal' pos (tok, len) =
-      TokenWithPosition
-        { token = tok,
-          tokenStart = pos,
-          tokenEnd = posAddCol (len - 1) pos
-        }
-
 data TokenWithPosition = TokenWithPosition
   { token :: Token,
     tokenStart :: Position,
