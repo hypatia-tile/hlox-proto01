@@ -7,7 +7,7 @@ import Data.Char (isDigit, isSpace)
 import qualified Data.Char as C
 import Interp.Data.Token
 
-type Lexer a= StateT LexerState Maybe a
+type Lexer a = StateT LexerState Maybe a
 
 class HasPosition a where
   posLine :: a -> Int
@@ -91,7 +91,7 @@ parseIdent = do
     munchIdent = do
       (c, _) <- matchC isAlpha
       (s, pos) <- munch isAlphaNum
-      return (c:s, pos)
+      return (c : s, pos)
     isAlpha :: Char -> Bool
     isAlpha c = C.isAlpha c || c == '_'
     isAlphaNum c = C.isAlphaNum c || c == '_'
@@ -101,7 +101,7 @@ parseNumber = do
   originPos <- currentPos <$> get
   (firstChar, _) <- matchC isDigit
   (rest, lastPosition) <- munchNumDot
-  return $ TokenWithRange (TokNumber . read $ firstChar:rest) originPos lastPosition
+  return $ TokenWithRange (TokNumber . read $ firstChar : rest) originPos lastPosition
   where
     munchNumDot :: Lexer (String, Position)
     munchNumDot = do
@@ -111,14 +111,14 @@ parseNumber = do
         then do
           (c, _) <- advance
           (s, pos') <- munchNumDot
-          return (c:s, pos')
+          return (c : s, pos')
         else munchAfterDot <|> return ("", pos)
     munchAfterDot :: Lexer (String, Position)
     munchAfterDot = do
       (d, _) <- matchC ('.' ==)
       (c, _) <- matchC isDigit
       (s, pos) <- munch isDigit
-      return (d:c:s, pos)
+      return (d : c : s, pos)
 
 parseString :: Lexer LexerVal
 parseString = do
@@ -136,7 +136,7 @@ parseString = do
         then return ("", po)
         else do
           (s, po') <- munchString
-          return (c:s, po')
+          return (c : s, po')
 
 parseSingle :: Lexer LexerVal
 parseSingle = do
@@ -230,7 +230,7 @@ munch prop = do
     then do
       (c, pos') <- advance
       (s, lastPos) <- munch prop
-      return (c:s, lastPos)
+      return (c : s, lastPos)
     else return ("", pos)
 
 peek :: (Char -> Bool) -> Lexer Bool
@@ -243,9 +243,8 @@ advance :: Lexer (Char, Position)
 advance = StateT $ \lexerState -> do
   (c, rest) <- getC . source $ lexerState
   let newPos = if c == '\n' then posNewLine else posAddCol 1
-  return ((c, currentPos lexerState), newPos (lexerState { source = rest }))
+  return ((c, currentPos lexerState), newPos (lexerState {source = rest}))
 
 getC :: String -> Maybe (Char, String)
 getC [] = Nothing
-getC (x:xs) = Just (x, xs)
-
+getC (x : xs) = Just (x, xs)
