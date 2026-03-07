@@ -111,14 +111,13 @@ parseNumber = do
           (c, _) <- advance
           (s, pos') <- munchNumDot
           return (c:s, pos')
-        else do
-          isDot <- peek ('.' ==)
-          if isDot
-            then do
-              (c, _) <- advance
-              (s, pos') <- munch isDigit
-              return (c:s, pos')
-            else return ("", pos)
+        else munchAfterDot <|> return ("", pos)
+    munchAfterDot :: Lexer (String, Position)
+    munchAfterDot = do
+      (d, _) <- matchC ('.' ==)
+      (c, _) <- matchC isDigit
+      (s, pos) <- munch isDigit
+      return (d:c:s, pos)
 
 parseString :: Lexer LexerVal
 parseString = do
