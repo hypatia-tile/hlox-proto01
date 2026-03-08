@@ -30,6 +30,7 @@ library
     Interp.Repl,
     Interp.Core,
     Interp.Data.Token,
+    Interp.Data.Lexer,
     Interp.Lex.Lexer,
 
   build-depends:
