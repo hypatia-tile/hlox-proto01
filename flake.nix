@@ -26,6 +26,7 @@
           hp.ghcid
           hp.ormolu
           hp.hlint
+          hp.hspec-discover
           pkgs.haskellPackages.cabal-gild
         ];
       in {
