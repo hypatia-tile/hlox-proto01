@@ -1,13 +1,15 @@
 module Interp.Lex.Lexer (lexer, TokenWithRange (..)) where
 
 import Control.Applicative ((<|>))
-import Control.Monad
 import Control.Monad.State.Strict
-import Data.Char (isDigit, isSpace)
-import qualified Data.Char as C
-import Interp.Data.Token
 import Interp.Data.Lexer
+import Interp.Lex.Parsers.Identifier
+import Interp.Lex.Parsers.Number
+import Interp.Lex.Parsers.Operator
+import Interp.Lex.Parsers.String
+import Interp.Lex.Trivia
 
+-- | Main lexer function that converts source code into a list of tokens
 lexer :: String -> [LexerVal]
 lexer source =
   lexerHelper (skipTrivia *> parser) (newLexerState source)
@@ -17,9 +19,7 @@ lexer source =
       Nothing -> []
       Just (token, newState) -> token : lexerHelper lexer newState
 
-newLexerVal :: Token -> Position -> Position -> LexerVal
-newLexerVal = TokenWithRange
-
+-- | Main parser that tries all token parsers in order
 parser :: Lexer LexerVal
 parser =
   parseDouble
@@ -27,174 +27,3 @@ parser =
     <|> parseString
     <|> parseNumber
     <|> parseIdent
-
-parseIdent :: Lexer LexerVal
-parseIdent = do
-  originPos <- currentPos <$> get
-  (ident, lastPosition) <- munchIdent
-  let token = case reservedTokens ident of
-        Just tok -> tok
-        Nothing -> TokIdentifier ident
-  return $ TokenWithRange token originPos lastPosition
-  where
-    munchIdent :: Lexer (String, Position)
-    munchIdent = do
-      (c, _) <- matchC isAlpha
-      (s, pos) <- munch isAlphaNum
-      return (c : s, pos)
-    isAlpha :: Char -> Bool
-    isAlpha c = C.isAlpha c || c == '_'
-    isAlphaNum c = C.isAlphaNum c || c == '_'
-
-parseNumber :: Lexer LexerVal
-parseNumber = do
-  originPos <- currentPos <$> get
-  (firstChar, _) <- matchC isDigit
-  (rest, lastPosition) <- munchNumDot
-  return $ TokenWithRange (TokNumber . read $ firstChar : rest) originPos lastPosition
-  where
-    munchNumDot :: Lexer (String, Position)
-    munchNumDot = do
-      pos <- currentPos <$> get
-      isNum <- peek isDigit
-      if isNum
-        then do
-          (c, _) <- advance
-          (s, pos') <- munchNumDot
-          return (c : s, pos')
-        else munchAfterDot <|> return ("", pos)
-    munchAfterDot :: Lexer (String, Position)
-    munchAfterDot = do
-      (d, _) <- matchC ('.' ==)
-      (c, _) <- matchC isDigit
-      (s, pos) <- munch isDigit
-      return (d : c : s, pos)
-
-parseString :: Lexer LexerVal
-parseString = do
-  (firstChar, pos) <- advance
-  if firstChar == '"'
-    then do
-      (tokStr, lastPos) <- munchString
-      return $ TokenWithRange (TokString tokStr) pos lastPos
-    else fail "Not match a string"
-  where
-    munchString :: Lexer (String, Position)
-    munchString = do
-      (c, po) <- advance
-      if c == '"'
-        then return ("", po)
-        else do
-          (s, po') <- munchString
-          return (c : s, po')
-
-parseSingle :: Lexer LexerVal
-parseSingle = do
-  (c, pos) <- advance
-  case matchTok c of
-    Just tok -> return $ TokenWithRange tok pos pos
-    Nothing -> fail "No single character token matches"
-  where
-    matchTok :: Char -> Maybe Token
-    matchTok '(' = Just TokLeftParen
-    matchTok ')' = Just TokRightParen
-    matchTok '{' = Just TokLeftBrace
-    matchTok '}' = Just TokRightBrace
-    matchTok ',' = Just TokComma
-    matchTok '.' = Just TokDot
-    matchTok '-' = Just TokMinus
-    matchTok '+' = Just TokPlus
-    matchTok ';' = Just TokSemicolon
-    matchTok '*' = Just TokStar
-    matchTok '!' = Just TokBang
-    matchTok '=' = Just TokEqual
-    matchTok '>' = Just TokGreater
-    matchTok '<' = Just TokLess
-    matchTok '/' = Just TokSlash
-    matchTok _ = Nothing
-
-parseDouble :: Lexer LexerVal
-parseDouble = do
-  prepos <- currentPos <$> get
-  (c, _) <- advance
-  (_, pos) <- matchC ('=' ==)
-  case withEqual c of
-    Just tok -> return $ TokenWithRange tok prepos pos
-    Nothing -> fail "first character does not match double"
-  where
-    withEqual :: Char -> Maybe Token
-    withEqual '!' = Just TokBangEqual
-    withEqual '=' = Just TokEqualEqual
-    withEqual '>' = Just TokGreaterEqual
-    withEqual '<' = Just TokLessEqual
-    withEqual _ = Nothing
-
-skipTrivia :: Lexer ()
-skipTrivia = do
-  st0 <- get
-  modify skipWhiteSpace
-  modify skipComment
-  st1 <- get
-  when (st0 /= st1) skipTrivia
-
-skipWhiteSpace :: LexerState -> LexerState
-skipWhiteSpace lexerState = case getC (source lexerState) of
-  Nothing -> lexerState
-  Just ('\n', rest) -> skipWhiteSpace . posNewLine $ (lexerState {source = rest})
-  Just (c, rest) ->
-    if isSpace c
-      then skipWhiteSpace (posAddCol 1 (lexerState {source = rest}))
-      else lexerState
-
-skipComment :: LexerState -> LexerState
-skipComment lexerState = case commentLine lexerState of
-  Nothing -> lexerState
-  Just newState -> newState
-  where
-    commentLine :: LexerState -> Maybe LexerState
-    commentLine state = do
-      (c1, rest1) <- getC (source state)
-      (c2, rest2) <- getC rest1
-      if c1 == '/' && c2 == '/'
-        then return $ posNewLine state {source = discardUntilNewline rest2}
-        else Nothing
-    discardUntilNewline :: String -> String
-    discardUntilNewline [] = []
-    discardUntilNewline (x : xs)
-      | x == '\n' = xs
-      | otherwise = discardUntilNewline xs
-
-matchC :: (Char -> Bool) -> Lexer (Char, Position)
-matchC prop = do
-  state <- get
-  (c', pos) <- advance
-  if prop c'
-    then return (c', pos)
-    else fail "does not suffice condition"
-
-munch :: (Char -> Bool) -> Lexer (String, Position)
-munch prop = do
-  pos <- currentPos <$> get
-  hasNext <- peek prop
-  if hasNext
-    then do
-      (c, pos') <- advance
-      (s, lastPos) <- munch prop
-      return (c : s, lastPos)
-    else return ("", pos)
-
-peek :: (Char -> Bool) -> Lexer Bool
-peek prop = StateT $ \state ->
-  case getC . source $ state of
-    Nothing -> return (False, state)
-    Just (c, _) -> return (prop c, state)
-
-advance :: Lexer (Char, Position)
-advance = StateT $ \lexerState -> do
-  (c, rest) <- getC . source $ lexerState
-  let newPos = if c == '\n' then posNewLine else posAddCol 1
-  return ((c, currentPos lexerState), newPos (lexerState {source = rest}))
-
-getC :: String -> Maybe (Char, String)
-getC [] = Nothing
-getC (x : xs) = Just (x, xs)

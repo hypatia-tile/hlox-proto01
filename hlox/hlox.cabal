@@ -32,6 +32,12 @@ library
     Interp.Data.Token,
     Interp.Data.Lexer,
     Interp.Lex.Lexer,
+    Interp.Lex.Primitives,
+    Interp.Lex.Trivia,
+    Interp.Lex.Parsers.Number,
+    Interp.Lex.Parsers.String,
+    Interp.Lex.Parsers.Identifier,
+    Interp.Lex.Parsers.Operator,
 
   build-depends:
     base ^>=4.20.2.0,
