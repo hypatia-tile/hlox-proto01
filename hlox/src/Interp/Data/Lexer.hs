@@ -1,9 +1,11 @@
 module Interp.Data.Lexer where
 
 import Control.Monad.State.Strict
+import Control.Monad.Writer.Strict
 import Interp.Data.Token
 
 type ParserM a = StateT LexerState Maybe a
+type LexerM a = Writer [LexError] a
 
 class HasPosition a where
   posLine :: a -> Int
