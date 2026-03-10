@@ -5,311 +5,310 @@ import Interp.Data.Token
 import Interp.Lex.Lexer
 import Test.Hspec
 
+-- Helper function to extract tokens from lexer result
+-- This will be updated when we implement LexResult
+getTokens :: String -> [LexerVal]
+getTokens = lexer
+
+-- Helper to extract just the token types for easier testing
+getTokenTypes :: String -> [Token]
+getTokenTypes = map token . getTokens
+
+-- Helper to check if lexing succeeded without errors
+shouldLexCleanly :: String -> Expectation
+shouldLexCleanly input = do
+  let tokens = getTokens input
+  length tokens `shouldSatisfy` (> 0)
+
 spec :: Spec
 spec = do
   describe "Lexer" $ do
     describe "Single-character tokens" $ do
       it "lexes left parenthesis" $ do
-        let tokens = lexer "("
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokLeftParen
+        let toks = getTokenTypes "("
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokLeftParen
 
       it "lexes right parenthesis" $ do
-        let tokens = lexer ")"
-        token (head tokens) `shouldBe` TokRightParen
+        let toks = getTokenTypes ")"
+        head toks `shouldBe` TokRightParen
 
       it "lexes left brace" $ do
-        let tokens = lexer "{"
-        token (head tokens) `shouldBe` TokLeftBrace
+        let toks = getTokenTypes "{"
+        head toks `shouldBe` TokLeftBrace
 
       it "lexes right brace" $ do
-        let tokens = lexer "}"
-        token (head tokens) `shouldBe` TokRightBrace
+        let toks = getTokenTypes "}"
+        head toks `shouldBe` TokRightBrace
 
       it "lexes comma" $ do
-        let tokens = lexer ","
-        token (head tokens) `shouldBe` TokComma
+        let toks = getTokenTypes ","
+        head toks `shouldBe` TokComma
 
       it "lexes dot" $ do
-        let tokens = lexer "."
-        token (head tokens) `shouldBe` TokDot
+        let toks = getTokenTypes "."
+        head toks `shouldBe` TokDot
 
       it "lexes minus" $ do
-        let tokens = lexer "-"
-        token (head tokens) `shouldBe` TokMinus
+        let toks = getTokenTypes "-"
+        head toks `shouldBe` TokMinus
 
       it "lexes plus" $ do
-        let tokens = lexer "+"
-        token (head tokens) `shouldBe` TokPlus
+        let toks = getTokenTypes "+"
+        head toks `shouldBe` TokPlus
 
       it "lexes semicolon" $ do
-        let tokens = lexer ";"
-        token (head tokens) `shouldBe` TokSemicolon
+        let toks = getTokenTypes ";"
+        head toks `shouldBe` TokSemicolon
 
       it "lexes star" $ do
-        let tokens = lexer "*"
-        token (head tokens) `shouldBe` TokStar
+        let toks = getTokenTypes "*"
+        head toks `shouldBe` TokStar
 
       it "lexes slash" $ do
-        let tokens = lexer "/"
-        token (head tokens) `shouldBe` TokSlash
+        let toks = getTokenTypes "/"
+        head toks `shouldBe` TokSlash
 
     describe "Two-character tokens" $ do
       it "lexes bang equal" $ do
-        let tokens = lexer "!="
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokBangEqual
+        let toks = getTokenTypes "!="
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokBangEqual
 
       it "lexes equal equal" $ do
-        let tokens = lexer "=="
-        token (head tokens) `shouldBe` TokEqualEqual
+        let toks = getTokenTypes "=="
+        head toks `shouldBe` TokEqualEqual
 
       it "lexes greater equal" $ do
-        let tokens = lexer ">="
-        token (head tokens) `shouldBe` TokGreaterEqual
+        let toks = getTokenTypes ">="
+        head toks `shouldBe` TokGreaterEqual
 
       it "lexes less equal" $ do
-        let tokens = lexer "<="
-        token (head tokens) `shouldBe` TokLessEqual
+        let toks = getTokenTypes "<="
+        head toks `shouldBe` TokLessEqual
 
       it "lexes single bang when not followed by equal" $ do
-        let tokens = lexer "!"
-        token (head tokens) `shouldBe` TokBang
+        let toks = getTokenTypes "!"
+        head toks `shouldBe` TokBang
 
       it "lexes single equal when not followed by equal" $ do
-        let tokens = lexer "="
-        token (head tokens) `shouldBe` TokEqual
+        let toks = getTokenTypes "="
+        head toks `shouldBe` TokEqual
 
       it "lexes single greater when not followed by equal" $ do
-        let tokens = lexer ">"
-        token (head tokens) `shouldBe` TokGreater
+        let toks = getTokenTypes ">"
+        head toks `shouldBe` TokGreater
 
       it "lexes single less when not followed by equal" $ do
-        let tokens = lexer "<"
-        token (head tokens) `shouldBe` TokLess
+        let toks = getTokenTypes "<"
+        head toks `shouldBe` TokLess
 
     describe "Number literals" $ do
       it "lexes integer" $ do
-        let tokens = lexer "123"
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokNumber 123.0
+        let toks = getTokenTypes "123"
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokNumber 123.0
 
       it "lexes floating point number" $ do
-        let tokens = lexer "123.456"
-        token (head tokens) `shouldBe` TokNumber 123.456
+        let toks = getTokenTypes "123.456"
+        head toks `shouldBe` TokNumber 123.456
 
       it "lexes zero" $ do
-        let tokens = lexer "0"
-        token (head tokens) `shouldBe` TokNumber 0.0
+        let toks = getTokenTypes "0"
+        head toks `shouldBe` TokNumber 0.0
 
       it "lexes decimal starting with zero" $ do
-        let tokens = lexer "0.5"
-        token (head tokens) `shouldBe` TokNumber 0.5
+        let toks = getTokenTypes "0.5"
+        head toks `shouldBe` TokNumber 0.5
 
       it "lexes multiple numbers separated by spaces" $ do
-        let tokens = lexer "1 2 3"
-        length tokens `shouldBe` 3
-        token (tokens !! 0) `shouldBe` TokNumber 1.0
-        token (tokens !! 1) `shouldBe` TokNumber 2.0
-        token (tokens !! 2) `shouldBe` TokNumber 3.0
+        let toks = getTokenTypes "1 2 3"
+        length toks `shouldBe` 3
+        toks !! 0 `shouldBe` TokNumber 1.0
+        toks !! 1 `shouldBe` TokNumber 2.0
+        toks !! 2 `shouldBe` TokNumber 3.0
 
     describe "String literals" $ do
       it "lexes empty string" $ do
-        let tokens = lexer "\"\""
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokString ""
+        let toks = getTokenTypes "\"\""
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokString ""
 
       it "lexes simple string" $ do
-        let tokens = lexer "\"hello\""
-        token (head tokens) `shouldBe` TokString "hello"
+        let toks = getTokenTypes "\"hello\""
+        head toks `shouldBe` TokString "hello"
 
       it "lexes string with spaces" $ do
-        let tokens = lexer "\"hello world\""
-        token (head tokens) `shouldBe` TokString "hello world"
+        let toks = getTokenTypes "\"hello world\""
+        head toks `shouldBe` TokString "hello world"
 
       it "lexes string with special characters" $ do
-        let tokens = lexer "\"Hello, World!\""
-        token (head tokens) `shouldBe` TokString "Hello, World!"
+        let toks = getTokenTypes "\"Hello, World!\""
+        head toks `shouldBe` TokString "Hello, World!"
 
     describe "Identifiers" $ do
       it "lexes simple identifier" $ do
-        let tokens = lexer "foo"
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokIdentifier "foo"
+        let toks = getTokenTypes "foo"
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokIdentifier "foo"
 
       it "lexes identifier with underscores" $ do
-        let tokens = lexer "foo_bar"
-        token (head tokens) `shouldBe` TokIdentifier "foo_bar"
+        let toks = getTokenTypes "foo_bar"
+        head toks `shouldBe` TokIdentifier "foo_bar"
 
       it "lexes identifier starting with underscore" $ do
-        let tokens = lexer "_foo"
-        token (head tokens) `shouldBe` TokIdentifier "_foo"
+        let toks = getTokenTypes "_foo"
+        head toks `shouldBe` TokIdentifier "_foo"
 
       it "lexes identifier with numbers" $ do
-        let tokens = lexer "foo123"
-        token (head tokens) `shouldBe` TokIdentifier "foo123"
+        let toks = getTokenTypes "foo123"
+        head toks `shouldBe` TokIdentifier "foo123"
 
       it "lexes multiple identifiers" $ do
-        let tokens = lexer "foo bar baz"
-        length tokens `shouldBe` 3
-        token (tokens !! 0) `shouldBe` TokIdentifier "foo"
-        token (tokens !! 1) `shouldBe` TokIdentifier "bar"
-        token (tokens !! 2) `shouldBe` TokIdentifier "baz"
+        let toks = getTokenTypes "foo bar baz"
+        length toks `shouldBe` 3
+        toks !! 0 `shouldBe` TokIdentifier "foo"
+        toks !! 1 `shouldBe` TokIdentifier "bar"
+        toks !! 2 `shouldBe` TokIdentifier "baz"
 
     describe "Keywords" $ do
       it "lexes 'and' keyword" $ do
-        let tokens = lexer "and"
-        token (head tokens) `shouldBe` TokAnd
+        head (getTokenTypes "and") `shouldBe` TokAnd
 
       it "lexes 'class' keyword" $ do
-        let tokens = lexer "class"
-        token (head tokens) `shouldBe` TokClass
+        head (getTokenTypes "class") `shouldBe` TokClass
 
       it "lexes 'else' keyword" $ do
-        let tokens = lexer "else"
-        token (head tokens) `shouldBe` TokElse
+        head (getTokenTypes "else") `shouldBe` TokElse
 
       it "lexes 'false' keyword" $ do
-        let tokens = lexer "false"
-        token (head tokens) `shouldBe` TokFalse
+        head (getTokenTypes "false") `shouldBe` TokFalse
 
       it "lexes 'for' keyword" $ do
-        let tokens = lexer "for"
-        token (head tokens) `shouldBe` TokFor
+        head (getTokenTypes "for") `shouldBe` TokFor
 
       it "lexes 'fun' keyword" $ do
-        let tokens = lexer "fun"
-        token (head tokens) `shouldBe` TokFun
+        head (getTokenTypes "fun") `shouldBe` TokFun
 
       it "lexes 'if' keyword" $ do
-        let tokens = lexer "if"
-        token (head tokens) `shouldBe` TokIf
+        head (getTokenTypes "if") `shouldBe` TokIf
 
       it "lexes 'nil' keyword" $ do
-        let tokens = lexer "nil"
-        token (head tokens) `shouldBe` TokNil
+        head (getTokenTypes "nil") `shouldBe` TokNil
 
       it "lexes 'or' keyword" $ do
-        let tokens = lexer "or"
-        token (head tokens) `shouldBe` TokOr
+        head (getTokenTypes "or") `shouldBe` TokOr
 
       it "lexes 'print' keyword" $ do
-        let tokens = lexer "print"
-        token (head tokens) `shouldBe` TokPrint
+        head (getTokenTypes "print") `shouldBe` TokPrint
 
       it "lexes 'return' keyword" $ do
-        let tokens = lexer "return"
-        token (head tokens) `shouldBe` TokReturn
+        head (getTokenTypes "return") `shouldBe` TokReturn
 
       it "lexes 'super' keyword" $ do
-        let tokens = lexer "super"
-        token (head tokens) `shouldBe` TokSuper
+        head (getTokenTypes "super") `shouldBe` TokSuper
 
       it "lexes 'this' keyword" $ do
-        let tokens = lexer "this"
-        token (head tokens) `shouldBe` TokThis
+        head (getTokenTypes "this") `shouldBe` TokThis
 
       it "lexes 'true' keyword" $ do
-        let tokens = lexer "true"
-        token (head tokens) `shouldBe` TokTrue
+        head (getTokenTypes "true") `shouldBe` TokTrue
 
       it "lexes 'var' keyword" $ do
-        let tokens = lexer "var"
-        token (head tokens) `shouldBe` TokVar
+        head (getTokenTypes "var") `shouldBe` TokVar
 
       it "lexes 'while' keyword" $ do
-        let tokens = lexer "while"
-        token (head tokens) `shouldBe` TokWhile
+        head (getTokenTypes "while") `shouldBe` TokWhile
 
     describe "Whitespace handling" $ do
       it "skips spaces" $ do
-        let tokens = lexer "1   2"
-        length tokens `shouldBe` 2
+        let toks = getTokenTypes "1   2"
+        length toks `shouldBe` 2
 
       it "skips tabs" $ do
-        let tokens = lexer "1\t\t2"
-        length tokens `shouldBe` 2
+        let toks = getTokenTypes "1\t\t2"
+        length toks `shouldBe` 2
 
       it "skips newlines" $ do
-        let tokens = lexer "1\n2"
-        length tokens `shouldBe` 2
+        let toks = getTokenTypes "1\n2"
+        length toks `shouldBe` 2
 
       it "handles mixed whitespace" $ do
-        let tokens = lexer "1 \t\n 2"
-        length tokens `shouldBe` 2
+        let toks = getTokenTypes "1 \t\n 2"
+        length toks `shouldBe` 2
 
     describe "Comments" $ do
       it "skips line comment" $ do
-        let tokens = lexer "// this is a comment"
-        length tokens `shouldBe` 0
+        let toks = getTokenTypes "// this is a comment"
+        length toks `shouldBe` 0
 
       it "skips line comment with code after newline" $ do
-        let tokens = lexer "// comment\n123"
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokNumber 123.0
+        let toks = getTokenTypes "// comment\n123"
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokNumber 123.0
 
       it "lexes code before comment" $ do
-        let tokens = lexer "123 // comment"
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokNumber 123.0
+        let toks = getTokenTypes "123 // comment"
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokNumber 123.0
 
       it "handles multiple line comments" $ do
-        let tokens = lexer "// comment 1\n// comment 2\n123"
-        length tokens `shouldBe` 1
-        token (head tokens) `shouldBe` TokNumber 123.0
+        let toks = getTokenTypes "// comment 1\n// comment 2\n123"
+        length toks `shouldBe` 1
+        head toks `shouldBe` TokNumber 123.0
 
     describe "Complex expressions" $ do
       it "lexes simple arithmetic" $ do
-        let tokens = lexer "1 + 2"
-        length tokens `shouldBe` 3
-        token (tokens !! 0) `shouldBe` TokNumber 1.0
-        token (tokens !! 1) `shouldBe` TokPlus
-        token (tokens !! 2) `shouldBe` TokNumber 2.0
+        let toks = getTokenTypes "1 + 2"
+        length toks `shouldBe` 3
+        toks !! 0 `shouldBe` TokNumber 1.0
+        toks !! 1 `shouldBe` TokPlus
+        toks !! 2 `shouldBe` TokNumber 2.0
 
       it "lexes variable assignment" $ do
-        let tokens = lexer "var x = 42;"
-        length tokens `shouldBe` 5
-        token (tokens !! 0) `shouldBe` TokVar
-        token (tokens !! 1) `shouldBe` TokIdentifier "x"
-        token (tokens !! 2) `shouldBe` TokEqual
-        token (tokens !! 3) `shouldBe` TokNumber 42.0
-        token (tokens !! 4) `shouldBe` TokSemicolon
+        let toks = getTokenTypes "var x = 42;"
+        length toks `shouldBe` 5
+        toks !! 0 `shouldBe` TokVar
+        toks !! 1 `shouldBe` TokIdentifier "x"
+        toks !! 2 `shouldBe` TokEqual
+        toks !! 3 `shouldBe` TokNumber 42.0
+        toks !! 4 `shouldBe` TokSemicolon
 
       it "lexes print statement" $ do
-        let tokens = lexer "print \"Hello, World!\";"
-        length tokens `shouldBe` 3
-        token (tokens !! 0) `shouldBe` TokPrint
-        token (tokens !! 1) `shouldBe` TokString "Hello, World!"
-        token (tokens !! 2) `shouldBe` TokSemicolon
+        let toks = getTokenTypes "print \"Hello, World!\";"
+        length toks `shouldBe` 3
+        toks !! 0 `shouldBe` TokPrint
+        toks !! 1 `shouldBe` TokString "Hello, World!"
+        toks !! 2 `shouldBe` TokSemicolon
 
       it "lexes function call" $ do
-        let tokens = lexer "foo(1, 2)"
-        length tokens `shouldBe` 6
-        token (tokens !! 0) `shouldBe` TokIdentifier "foo"
-        token (tokens !! 1) `shouldBe` TokLeftParen
-        token (tokens !! 2) `shouldBe` TokNumber 1.0
-        token (tokens !! 3) `shouldBe` TokComma
-        token (tokens !! 4) `shouldBe` TokNumber 2.0
-        token (tokens !! 5) `shouldBe` TokRightParen
+        let toks = getTokenTypes "foo(1, 2)"
+        length toks `shouldBe` 6
+        toks !! 0 `shouldBe` TokIdentifier "foo"
+        toks !! 1 `shouldBe` TokLeftParen
+        toks !! 2 `shouldBe` TokNumber 1.0
+        toks !! 3 `shouldBe` TokComma
+        toks !! 4 `shouldBe` TokNumber 2.0
+        toks !! 5 `shouldBe` TokRightParen
 
       it "lexes if statement" $ do
-        let tokens = lexer "if (x > 0) { print x; }"
-        length tokens `shouldBe` 11
-        token (tokens !! 0) `shouldBe` TokIf
-        token (tokens !! 1) `shouldBe` TokLeftParen
-        token (tokens !! 2) `shouldBe` TokIdentifier "x"
-        token (tokens !! 3) `shouldBe` TokGreater
-        token (tokens !! 4) `shouldBe` TokNumber 0.0
-        token (tokens !! 5) `shouldBe` TokRightParen
-        token (tokens !! 6) `shouldBe` TokLeftBrace
-        token (tokens !! 7) `shouldBe` TokPrint
-        token (tokens !! 8) `shouldBe` TokIdentifier "x"
-        token (tokens !! 9) `shouldBe` TokSemicolon
-        token (tokens !! 10) `shouldBe` TokRightBrace
+        let toks = getTokenTypes "if (x > 0) { print x; }"
+        length toks `shouldBe` 11
+        toks !! 0 `shouldBe` TokIf
+        toks !! 1 `shouldBe` TokLeftParen
+        toks !! 2 `shouldBe` TokIdentifier "x"
+        toks !! 3 `shouldBe` TokGreater
+        toks !! 4 `shouldBe` TokNumber 0.0
+        toks !! 5 `shouldBe` TokRightParen
+        toks !! 6 `shouldBe` TokLeftBrace
+        toks !! 7 `shouldBe` TokPrint
+        toks !! 8 `shouldBe` TokIdentifier "x"
+        toks !! 9 `shouldBe` TokSemicolon
+        toks !! 10 `shouldBe` TokRightBrace
 
     describe "Position tracking" $ do
       it "tracks position for single token" $ do
-        let tokens = lexer "123"
+        let tokens = getTokens "123"
         let tok = head tokens
         line (tokenStart tok) `shouldBe` 0
         column (tokenStart tok) `shouldBe` 0
@@ -317,16 +316,46 @@ spec = do
         column (tokenEnd tok) `shouldBe` 3
 
       it "tracks position across whitespace" $ do
-        let tokens = lexer "1 2"
+        let tokens = getTokens "1 2"
         let tok1 = tokens !! 0
         let tok2 = tokens !! 1
         column (tokenEnd tok1) `shouldBe` 1
         column (tokenStart tok2) `shouldBe` 2
 
       it "tracks position across newlines" $ do
-        let tokens = lexer "1\n2"
+        let tokens = getTokens "1\n2"
         let tok1 = tokens !! 0
         let tok2 = tokens !! 1
         line (tokenEnd tok1) `shouldBe` 0
         line (tokenStart tok2) `shouldBe` 1
         column (tokenStart tok2) `shouldBe` 0
+
+    -- NOTE: Error recovery tests will be enabled when implementing Hybrid approach
+    -- These tests are prepared but commented out until TokError and LexResult are implemented
+    {-
+    describe "Error recovery" $ do
+      it "reports unexpected character and continues lexing" $ do
+        let toks = getTokenTypes "var x = @;"
+        -- Should contain: TokVar, TokIdentifier, TokEqual, TokError, TokSemicolon
+        length toks `shouldBe` 5
+        toks !! 0 `shouldBe` TokVar
+        toks !! 1 `shouldBe` TokIdentifier "x"
+        toks !! 2 `shouldBe` TokEqual
+        -- toks !! 3 should be TokError
+        toks !! 4 `shouldBe` TokSemicolon
+
+      it "reports unterminated string" $ do
+        let toks = getTokenTypes "\"unterminated"
+        length toks `shouldBe` 1
+        -- head toks should be TokError
+
+      it "recovers from multiple errors" $ do
+        let toks = getTokenTypes "var @ = #;"
+        -- Should continue lexing after each error
+        length toks `shouldSatisfy` (> 0)
+
+      it "handles unterminated string followed by valid code" $ do
+        let toks = getTokenTypes "\"bad\nvar x = 1;"
+        -- Should have error token for unterminated string, then continue
+        length toks `shouldSatisfy` (> 3)
+    -}
