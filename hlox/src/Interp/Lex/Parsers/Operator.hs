@@ -10,7 +10,7 @@ import Interp.Data.Token
 import Interp.Lex.Primitives
 
 -- | Parse single-character operators and punctuation
-parseSingle :: Lexer LexerVal
+parseSingle :: ParserM LexerVal
 parseSingle = do
   (c, pos) <- advance
   case matchTok c of
@@ -36,7 +36,7 @@ parseSingle = do
     matchTok _ = Nothing
 
 -- | Parse two-character operators (e.g., ==, !=, <=, >=)
-parseDouble :: Lexer LexerVal
+parseDouble :: ParserM LexerVal
 parseDouble = do
   prepos <- currentPos <$> get
   (c, _) <- advance

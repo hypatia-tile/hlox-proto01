@@ -10,7 +10,7 @@ import Interp.Data.Lexer
 import Interp.Lex.Primitives
 
 -- | Skip all trivia (whitespace and comments)
-skipTrivia :: Lexer ()
+skipTrivia :: ParserM ()
 skipTrivia = do
   st0 <- get
   modify skipWhiteSpace

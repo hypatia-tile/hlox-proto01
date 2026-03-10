@@ -3,7 +3,7 @@ module Interp.Data.Lexer where
 import Control.Monad.State.Strict
 import Interp.Data.Token
 
-type Lexer a = StateT LexerState Maybe a
+type ParserM a = StateT LexerState Maybe a
 
 class HasPosition a where
   posLine :: a -> Int

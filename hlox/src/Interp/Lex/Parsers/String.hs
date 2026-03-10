@@ -8,7 +8,7 @@ import Interp.Data.Token
 import Interp.Lex.Primitives
 
 -- | Parse a string literal enclosed in double quotes
-parseString :: Lexer LexerVal
+parseString :: ParserM LexerVal
 parseString = do
   (firstChar, pos) <- advance
   if firstChar == '"'
@@ -17,7 +17,7 @@ parseString = do
       return $ TokenWithRange (TokString tokStr) pos lastPos
     else fail "Not match a string"
   where
-    munchString :: Lexer (String, Position)
+    munchString :: ParserM (String, Position)
     munchString = do
       (c, po) <- advance
       if c == '"'

@@ -10,7 +10,7 @@ import Interp.Data.Token
 import Interp.Lex.Primitives
 
 -- | Parse an identifier or keyword
-parseIdent :: Lexer LexerVal
+parseIdent :: ParserM LexerVal
 parseIdent = do
   originPos <- currentPos <$> get
   (ident, lastPosition) <- munchIdent
@@ -19,7 +19,7 @@ parseIdent = do
         Nothing -> TokIdentifier ident
   return $ TokenWithRange token originPos lastPosition
   where
-    munchIdent :: Lexer (String, Position)
+    munchIdent :: ParserM (String, Position)
     munchIdent = do
       (c, _) <- matchC isAlpha
       (s, pos) <- munch isAlphaNum

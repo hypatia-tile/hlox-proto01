@@ -16,21 +16,21 @@ getC [] = Nothing
 getC (x : xs) = Just (x, xs)
 
 -- | Advance the lexer by one character, updating position
-advance :: Lexer (Char, Position)
+advance :: ParserM (Char, Position)
 advance = StateT $ \lexerState -> do
   (c, rest) <- getC . source $ lexerState
   let newPos = if c == '\n' then posNewLine else posAddCol 1
   return ((c, currentPos lexerState), newPos (lexerState {source = rest}))
 
 -- | Peek at the next character without consuming it
-peek :: (Char -> Bool) -> Lexer Bool
+peek :: (Char -> Bool) -> ParserM Bool
 peek prop = StateT $ \state ->
   case getC . source $ state of
     Nothing -> return (False, state)
     Just (c, _) -> return (prop c, state)
 
 -- | Match a character that satisfies a predicate
-matchC :: (Char -> Bool) -> Lexer (Char, Position)
+matchC :: (Char -> Bool) -> ParserM (Char, Position)
 matchC prop = do
   state <- get
   (c', pos) <- advance
@@ -39,7 +39,7 @@ matchC prop = do
     else fail "does not suffice condition"
 
 -- | Consume characters while they satisfy a predicate
-munch :: (Char -> Bool) -> Lexer (String, Position)
+munch :: (Char -> Bool) -> ParserM (String, Position)
 munch prop = do
   pos <- currentPos <$> get
   hasNext <- peek prop

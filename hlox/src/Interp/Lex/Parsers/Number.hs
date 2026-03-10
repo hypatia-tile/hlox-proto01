@@ -11,14 +11,14 @@ import Interp.Data.Token
 import Interp.Lex.Primitives
 
 -- | Parse a number literal (integer or floating point)
-parseNumber :: Lexer LexerVal
+parseNumber :: ParserM LexerVal
 parseNumber = do
   originPos <- currentPos <$> get
   (firstChar, _) <- matchC isDigit
   (rest, lastPosition) <- munchNumDot
   return $ TokenWithRange (TokNumber . read $ firstChar : rest) originPos lastPosition
   where
-    munchNumDot :: Lexer (String, Position)
+    munchNumDot :: ParserM (String, Position)
     munchNumDot = do
       pos <- currentPos <$> get
       isNum <- peek isDigit
@@ -28,7 +28,7 @@ parseNumber = do
           (s, pos') <- munchNumDot
           return (c : s, pos')
         else munchAfterDot <|> return ("", pos)
-    munchAfterDot :: Lexer (String, Position)
+    munchAfterDot :: ParserM (String, Position)
     munchAfterDot = do
       (d, _) <- matchC ('.' ==)
       (c, _) <- matchC isDigit
