@@ -45,6 +45,19 @@ instance Show Position where
   show (Position line col) =
     "(" <> show line <> "," <> show col <> ")"
 
+-- | The type for report error in tokenization 
+data LexError = LexError
+  { errorMessage :: String,
+    errorPosition :: Position
+  }
+  deriving (Show, Eq)
+
+data LexResult = LexResult
+  { tokens :: [LexerVal],
+    errors :: [LexError]
+  }
+  deriving (Show)
+
 data LexerState = LexerState
   { source :: String,
     currentPos :: Position
