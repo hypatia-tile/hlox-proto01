@@ -6,9 +6,16 @@ import Interp.Lex.Lexer
 import Test.Hspec
 
 -- Helper function to extract tokens from lexer result
--- This will be updated when we implement LexResult
 getTokens :: String -> [LexerVal]
-getTokens = lexer
+getTokens = tokens . lexer
+
+-- Helper to extract errors from lexer result
+getErrors :: String -> [LexError]
+getErrors = errors . lexer
+
+-- Helper to check if lexing succeeded without errors
+hasNoErrors :: String -> Bool
+hasNoErrors = null . getErrors
 
 -- Helper to extract just the token types for easier testing
 getTokenTypes :: String -> [Token]
@@ -17,8 +24,9 @@ getTokenTypes = map token . getTokens
 -- Helper to check if lexing succeeded without errors
 shouldLexCleanly :: String -> Expectation
 shouldLexCleanly input = do
-  let tokens = getTokens input
-  length tokens `shouldSatisfy` (> 0)
+  let toks = getTokens input
+  length toks `shouldSatisfy` (> 0)
+  hasNoErrors input `shouldBe` True
 
 spec :: Spec
 spec = do
