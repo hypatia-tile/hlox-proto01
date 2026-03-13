@@ -1,4 +1,4 @@
-module Interp.Lex.Lexer (lexer, TokenWithRange (..)) where
+module Interp.Lex.Lexer (lexer, LexResult(..), LexError(..), TokenWithRange (..)) where
 
 import Control.Applicative ((<|>))
 import Control.Monad.State.Strict
@@ -12,10 +12,11 @@ import Interp.Lex.Parsers.String
 import Interp.Lex.Primitives
 import Interp.Lex.Trivia
 
--- | Main lexer function that converts source code into a list of tokens
-lexer :: String -> LexerM [LexerVal]
+-- | Main lexer function that converts source code into tokens and errors
+lexer :: String -> LexResult
 lexer source =
-  lexerHelper (skipTrivia *> parser) (newLexerState source)
+  let (toks, errs) = runWriter (lexerHelper (skipTrivia *> parser) (newLexerState source))
+  in LexResult toks errs
   where
     lexerHelper :: ParserM LexerVal -> LexerState -> LexerM [LexerVal]
     lexerHelper lexer sourceState = case runStateT lexer sourceState of
