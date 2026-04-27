@@ -1,0 +1,8 @@
+indentation: 2
+column-limit: 100
+function-arrows: trailing
+comma-style: leading
+import-export-style: leading
+indent-wheres: true
+record-brace-space: true
+newline-between-decls: 1

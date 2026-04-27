@@ -1,9 +1,11 @@
 module Interp.Data.Lexer where
 
 import Control.Monad.State.Strict
+import Control.Monad.Writer.Strict
 import Interp.Data.Token
 
-type Lexer a = StateT LexerState Maybe a
+type ParserM a = StateT LexerState Maybe a
+type LexerM a = Writer [LexError] a
 
 class HasPosition a where
   posLine :: a -> Int
@@ -44,6 +46,19 @@ data Position = Position
 instance Show Position where
   show (Position line col) =
     "(" <> show line <> "," <> show col <> ")"
+
+-- | The type for report error in tokenization 
+data LexError = LexError
+  { errorMessage :: String,
+    errorPosition :: Position
+  }
+  deriving (Show, Eq)
+
+data LexResult = LexResult
+  { tokens :: [LexerVal],
+    errors :: [LexError]
+  }
+  deriving (Show)
 
 data LexerState = LexerState
   { source :: String,

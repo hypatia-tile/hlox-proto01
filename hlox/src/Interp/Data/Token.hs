@@ -46,6 +46,8 @@ data Token
   | TokWhile
   | -- End of file.
     TokEOF
+  | -- Pseude token for error handling.
+    TokError String
   deriving (Show, Eq)
 
 reservedTokens :: String -> Maybe Token

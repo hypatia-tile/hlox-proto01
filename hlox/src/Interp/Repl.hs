@@ -3,7 +3,7 @@ module Interp.Repl where
 import Control.Exception (IOException, catch)
 import System.IO (IOMode (ReadMode), hFlush, hGetContents, stdout, withFile)
 import System.IO.Error (isEOFError)
-import Interp.Lex.Lexer (lexer)
+import Interp.Lex.Lexer (lexer, LexResult(..))
 import Control.Monad (mapM_)
 
 repl :: IO ()
@@ -15,7 +15,11 @@ repl = do
     Nothing -> do
       putStrLn "\nBye!"
     Just line -> do
-      mapM_ print (lexer line)
+      let lexResult = lexer line
+      let toks = tokens lexResult
+      let errs = errors lexResult
+      mapM_ print toks
+      mapM_ print errs
       repl
   where
     getLineSafe :: IO (Maybe String)
